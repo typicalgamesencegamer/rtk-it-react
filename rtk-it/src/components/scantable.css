@@ -1,0 +1,201 @@
+.scan-table-container {
+  margin-top: 10px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  width: 745px;
+  display: flex;
+  flex-direction: column;
+}
+
+.scan-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.scan-table-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.record-count {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.pause-btn {
+  background: #007bff;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.pause-btn:hover {
+  background: #0056b3;
+}
+
+.pause-btn.paused {
+  background: #28a745;
+}
+
+.pause-btn.paused:hover {
+  background: #1e7e34;
+}
+
+.scan-table-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.scan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.scan-table th {
+  background: #f1f3f4;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.scan-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.scan-row:hover {
+  background-color: #f8f9fa;
+}
+
+.time-cell {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #495057;
+}
+
+.robot-id {
+  font-weight: 600;
+  color: #007bff;
+}
+
+.zone-cell {
+  font-weight: 500;
+  color: #e83e8c;
+}
+
+.product-cell .product-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.product-cell .product-sku {
+  font-size: 12px;
+  color: #6c757d;
+  margin-top: 2px;
+}
+
+.quantity-cell {
+  text-align: center;
+  font-weight: 600;
+  color: #333;
+}
+
+.status-cell {
+  text-align: center;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-ok {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-critical {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.no-data {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 40px !important;
+}
+
+.scan-table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.current-time {
+  font-family: 'Courier New', monospace;
+}
+
+.auto-scroll-indicator {
+  font-weight: 500;
+}
+
+/* Стили для скроллбара */
+.scan-table-wrapper::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scan-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.scan-table-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.scan-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

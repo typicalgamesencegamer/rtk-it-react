@@ -4,7 +4,7 @@ import LoginPage from './LoginPage';
 import RegisterPage from './RegisterPage';
 import { instance } from '../../axios/axios';
 import { login } from '../../store/slices/auth';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 const AuthRootComponent = (props) => {
     const [email, setEmail] = useState("");
@@ -21,7 +21,9 @@ const AuthRootComponent = (props) => {
                 password
             };
             const user = await instance.post('api/auth/login', userInfo);
-            dispatch(login(user.data));
+            const token = instance.data.token;
+            dispatch(login(user.data, token));
+            localStorage.setItem('token', token);
             navigate('/dashboard');
 
         } catch (e) {

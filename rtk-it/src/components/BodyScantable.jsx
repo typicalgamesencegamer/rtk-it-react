@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { addScan, togglePause, setAutoScroll } from '../store/slices/scantable';
 import { loadRobotsData } from '../store/slices/robots';
-import './scantable.css'
+import './scantable.css';
 
 const BodyScantable = () => {
 
@@ -43,23 +43,9 @@ const BodyScantable = () => {
   // Автоматическое добавление новых сканирований
   useEffect(() => {
     if (isPaused) return;
-    try {
-      HttpsWebSocket.onmessage = (event) => {
-        if (event.data.type === 'ROBOT_DATA') {
-          setRobots(() => [event.data]);
-          dispatch(loadRobotsData(robots.data));
-        }
-        if (event.data.type === 'SCAN_DATA') {
-          dispatch(addScan(event.data));
-        }
-      }
-    }
-    catch (e) {
-      return e;
-    }
 
     const interval = setInterval(() => {
-      
+
     }, 5000); // Новое сканирование каждые 5 секунды
 
     return () => clearInterval(interval);
@@ -96,9 +82,34 @@ const BodyScantable = () => {
     }
   }
 
+  let HttpsWebSocket = new WebSocket('http://localhost:8080');
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const headers = {
+      "Authorization": `Bearer ${token}`
+    };
+
+    HttpsWebSocket.onopen = () => {
+      console.log('WebSocket соединение установлено. Отправляю токен');
+      // Отправляем токен как первое сообщение после успешного подключения
+      HttpsWebSocket.send(JSON.stringify({ type: 'auth', token }));
+    };
+
+    HttpsWebSocket.onmessage = (event) => {
+      if (event.data.topic === 'robots') {
+        setRobots(() => [event.data]);
+        dispatch(loadRobotsData(robots.data));
+      }
+      if (event.data.topic === 'inventory_history') {
+        dispatch(addScan(event.data));
+      }
+    };
+
+  }, [])
+
   const handlePauseClick = () => {
     dispatch(togglePause());
-
+    HttpsWebSocket.send(JSON.stringify({ type: 'subscribe', topic: 'inventory_history' }));
   };
 
   const getStatusBadgeClass = (status) => {
@@ -115,14 +126,8 @@ const BodyScantable = () => {
   };
 
   const [robots, setRobots] = useState({});
-  let HttpsWebSocket = new WebSocket('url');
 
-  useEffect(() => {
-    console.log("устанавливаем соеденение websocket");
-    HttpsWebSocket.onopen = () => {
-      console.log("соединение websocket установлено");
-    };
-  }, [])
+
 
 
 

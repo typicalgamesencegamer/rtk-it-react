@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import Svg from "./svg";
+import Svg from "./svg2";
 import { AppBar, Box, Button, Typography } from "@mui/material";
 import CSVUploadModal from "./CSVModal";
 import { useDispatch, useSelector } from "react-redux";
 import { loadRobotsData } from "../store/slices/robots";
 import BodyScantable from "./BodyScantable";
+import BodyScant from "./bodyScant";
+import WarehouseMap from "./newSvg";
 
 function Input(props) {
   return (
@@ -79,10 +81,12 @@ function Body() {
       <div className="body_main">
         <div className="body_map">
           <Svg />
+          {/* <WarehouseMap /> */}
         </div>
         <div className="body_main-info">
           <BodyInfo />
-          <BodyScantable />
+          {/* <BodyScantable /> */}
+          <BodyScant />
           <BodyAIPredict />
         </div>
       </div>

@@ -8,6 +8,7 @@ import { loadRobotsData } from "../store/slices/robots";
 import BodyScantable from "./BodyScantable";
 import BodyScant from "./bodyScant";
 import WarehouseMap from "./newSvg";
+import { instance } from "../axios/axios";
 
 function Input(props) {
   return (
@@ -43,6 +44,19 @@ function Header() {
         break;
     }
   }
+
+  const handleClickDownloadCSV = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const CSVFile = await instance.get('/api/export-to-csv', token);
+
+    } catch (e) {
+      return e;
+    }
+
+  };
+
   return (
     <>
       <AppBar color="default" sx={{
@@ -67,6 +81,9 @@ function Header() {
         </div>
         <div className="header__navigation_item">
           <Button className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={() => { setIsModalOpen(true) }}>Загрузить CSV</Button>
+        </div>
+        <div className="header__navigation_item">
+          <Button className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={() => {handleClickDownloadCSV()}}>Скачать CSV</Button>
         </div>
         <CSVUploadModal open={isModalOpen} onClose={() => setIsModalOpen(false)} />
 

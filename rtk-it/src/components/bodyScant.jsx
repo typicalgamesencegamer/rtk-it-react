@@ -58,52 +58,52 @@ const BodyScant = () => {
     }
 
     setConnectionStatus('connecting');
-    
+
     const socket = new SockJS('http://localhost:8080/ws');
     const stompClient = Stomp.over(socket);
-    
+
     // Отключаем дебаг в продакшене
-    stompClient.debug = process.env.NODE_ENV === 'development' 
-      ? console.log 
-      : () => {};
-    
+    stompClient.debug = process.env.NODE_ENV === 'development'
+      ? console.log
+      : () => { };
+
     const headers = {
       Authorization: `Bearer ${token}`
     };
 
-    stompClient.connect(headers, 
+    stompClient.connect(headers,
       // onConnect
       (frame) => {
         console.log('WebSocket connected:', frame);
         setConnectionStatus('connected');
         stompClientRef.current = stompClient;
-        
+
         // Подписка на топик роботов
         stompClient.subscribe('/topic/robots', (message) => {
           try {
             const robotsData = JSON.parse(message.body);
             console.log('Received robots data:', robotsData);
-            
+
             // Преобразуем данные роботов если нужно
-            const transformedRobots = Array.isArray(robotsData) 
-              ? robotsData 
+            const transformedRobots = Array.isArray(robotsData)
+              ? robotsData
               : robotsData.data || robotsData.robots || [];
-            
+
             dispatch(loadRobotsData(transformedRobots));
           } catch (error) {
             console.error('Error parsing robots data:', error);
           }
         });
-        
+
         // Подписка на топик истории инвентаря
         stompClient.subscribe('/topic/inventory_history', (message) => {
           try {
             const inventoryData = JSON.parse(message.body);
             console.log('Received inventory data:', inventoryData);
-            
+
             // Обрабатываем разные форматы данных
             let scansData = [];
-            
+
             if (Array.isArray(inventoryData)) {
               scansData = inventoryData;
             } else if (inventoryData.data && Array.isArray(inventoryData.data)) {
@@ -114,7 +114,7 @@ const BodyScant = () => {
               // Если пришел одиночный объект
               scansData = [inventoryData];
             }
-            
+
             // Преобразуем и добавляем каждое сканирование
             scansData.forEach(scan => {
               if (scan && !isPaused) {
@@ -122,22 +122,22 @@ const BodyScant = () => {
                 dispatch(addScan(transformedScan));
               }
             });
-            
+
           } catch (error) {
             console.error('Error parsing inventory data:', error);
           }
         });
-        
+
         // Запрос начальных данных
         stompClient.send('/app/request-robots', {}, JSON.stringify({}));
         stompClient.send('/app/request-inventory_history', {}, JSON.stringify({}));
-        
-      }, 
+
+      },
       // onError
       (error) => {
         console.error('WebSocket connection error:', error);
         setConnectionStatus('error');
-        
+
         // Попытка переподключения через 5 секунд
         setTimeout(() => {
           if (stompClientRef.current === stompClient) {
@@ -147,7 +147,7 @@ const BodyScant = () => {
         }, 5000);
       }
     );
-    
+
     // Очистка при размонтировании
     return () => {
       if (stompClient && stompClient.connected) {
@@ -189,9 +189,9 @@ const BodyScant = () => {
         <h3>Последние сканирования</h3>
         <div className="controls">
           <span className={`connection-status ${connectionStatus}`}>
-            {connectionStatus === 'connected' ? '✅' : 
-             connectionStatus === 'connecting' ? '🔄' :
-             connectionStatus === 'reconnecting' ? '🔄' : '❌'}
+            {connectionStatus === 'connected' ? '✅' :
+              connectionStatus === 'connecting' ? '🔄' :
+                connectionStatus === 'reconnecting' ? '🔄' : '❌'}
             {connectionStatus}
           </span>
           <span className="record-count">
@@ -232,7 +232,7 @@ const BodyScant = () => {
                   <td className="time-cell">{scan.time}</td>
                   <td className="robot-id">{scan.robotId}</td>
                   <td className="zone-cell">
-                    {scan.zone} 
+                    {scan.zone}
                     {scan.rowNumber && ` Ряд ${scan.rowNumber}`}
                     {scan.shelfNumber && ` Стеллаж ${scan.shelfNumber}`}
                   </td>

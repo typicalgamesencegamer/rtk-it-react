@@ -32,42 +32,129 @@ const Svg = () => {
 
   const stompClientRef = useRef(null);
 
+  // Функция для преобразования координат робота в пиксели (матрица 5x3)
+  const robotToCoordinates = useCallback((zone, row, shelf) => {
+    if (!zone || row === undefined || shelf === undefined) {
+      return { x: 0, y: 0 };
+    }
+    
+    const zoneLetter = zone.toUpperCase();
+    const zoneIndex = zoneLetter.charCodeAt(0) - 65; // A=0, B=1, ..., O=14
+    
+    // Зоны расположены в матрице 5 строк × 3 столбца
+    const zonesPerRow = 3;
+    const zoneWidth = 8;   // клеток по X (ряды)
+    const zoneHeight = 10; // клеток по Y (полки)
+    
+    // Расчет позиции зоны в матрице
+    const matrixRow = Math.floor(zoneIndex / zonesPerRow); // 0-4
+    const matrixCol = zoneIndex % zonesPerRow; // 0-2
+    
+    // Координаты внутри зоны + смещение по матрице
+    const cellX = matrixCol * zoneWidth + row;
+    const cellY = matrixRow * zoneHeight + shelf;
+    
+    // Преобразование в пиксели (начинаем с колонки C - индекс 2)
+    const x = 90 + (cellX + 2) * 30 + 15;
+    const y = 30 + cellY * 30 + 15;
+    
+    console.log(`Robot coordinates: zone=${zone} (index=${zoneIndex}, matrix=[${matrixRow},${matrixCol}]), row=${row}, shelf=${shelf} -> x=${x}, y=${y}`);
+    
+    return { x, y };
+  }, []);
+
   // Функция для преобразования координат зоны в пиксели
   const zoneToCoordinates = useCallback((zoneString) => {
     if (!zoneString) return { x: 0, y: 0 };
     
-    // Формат зоны: "A-01", "B-12", etc.
-    const match = zoneString.match(/^([A-Z])-?(\d+)$/);
+    const match = zoneString.match(/^([A-O])$/i);
     if (match) {
       const letter = match[1];
-      const number = parseInt(match[2]);
+      const zoneIndex = letter.charCodeAt(0) - 65;
+      const zonesPerRow = 3;
+      const zoneWidth = 8;
+      const zoneHeight = 10;
       
-      const col = letter.charCodeAt(0) - 65; // A=0, B=1, etc.
-      const row = number - 1; // 1-based to 0-based
+      const matrixRow = Math.floor(zoneIndex / zonesPerRow);
+      const matrixCol = zoneIndex % zonesPerRow;
       
-      return {
-        x: 90 + col * 30 + 15, // center of cell
-        y: 30 + row * 30 + 15  // center of cell
-      };
-    }
-    
-    // Альтернативный формат: "A01", "B12"
-    const altMatch = zoneString.match(/^([A-Z])(\d+)$/);
-    if (altMatch) {
-      const letter = altMatch[1];
-      const number = parseInt(altMatch[2]);
-      
-      const col = letter.charCodeAt(0) - 65;
-      const row = number - 1;
+      // Центр зоны
+      const centerX = matrixCol * zoneWidth + zoneWidth / 2;
+      const centerY = matrixRow * zoneHeight + zoneHeight / 2;
       
       return {
-        x: 90 + col * 30 + 15,
-        y: 30 + row * 30 + 15
+        x: 90 + (centerX + 2) * 30 + 15,
+        y: 30 + centerY * 30 + 15
       };
     }
     
     return { x: 0, y: 0 };
   }, []);
+
+  // Функция для обновления позиций роботов
+  const updateRobotPositions = useCallback((robotData) => {
+    if (!robotData || !Array.isArray(robotData)) return;
+    
+    const updatedRobots = robotData.map(robot => {
+      // Проверяем валидность координат
+      const zone = robot.current_zone || robot.zone;
+      const row = robot.current_row || robot.row;
+      const shelf = robot.current_shelf || robot.shelf;
+      
+      if (!zone || row === undefined || shelf === undefined) {
+        console.warn(`Invalid coordinates for robot ${robot.id}: zone=${zone}, row=${row}, shelf=${shelf}`);
+        return null;
+      }
+      
+      // Проверяем диапазоны
+      const zoneIndex = zone.toUpperCase().charCodeAt(0) - 65;
+      if (zoneIndex < 0 || zoneIndex > 14) {
+        console.warn(`Zone out of range for robot ${robot.id}: ${zone} (A-O expected)`);
+        return null;
+      }
+      
+      if (row < 0 || row >= 8 || shelf < 0 || shelf >= 10) {
+        console.warn(`Coordinates out of range for robot ${robot.id}: row=${row} (0-7), shelf=${shelf} (0-9)`);
+        return null;
+      }
+      
+      // Получаем координаты из данных робота
+      const coords = robotToCoordinates(zone, row, shelf);
+      
+      // Находим существующего робота или создаем нового
+      const existingRobot = robots.find(r => r.id === robot.id || r.id === robot.robotId);
+      
+      return {
+        id: robot.id || robot.robotId || existingRobot?.id || `R${Math.random().toString(36).substr(2, 4)}`,
+        x: coords.x,
+        y: coords.y,
+        battery: robot.batteryLevel || robot.battery || existingRobot?.battery || 100,
+        status: mapRobotStatus(robot.status || existingRobot?.status || 'active'),
+        lastUpdate: robot.lastUpdate || robot.timestamp || new Date().toISOString(),
+        currentZone: zone,
+        currentRow: row,
+        currentShelf: shelf
+      };
+    }).filter(robot => robot !== null);
+    
+    setRobots(updatedRobots);
+  }, [robots, robotToCoordinates]);
+
+  // Функция для преобразования статуса робота
+  const mapRobotStatus = (status) => {
+    const statusMap = {
+      'ACTIVE': 'active',
+      'CHARGING': 'active',
+      'SCANNING': 'active',
+      'LOW_BATTERY': 'low_battery',
+      'CRITICAL_BATTERY': 'low_battery',
+      'OFFLINE': 'offline',
+      'ERROR': 'offline',
+      'MAINTENANCE': 'offline'
+    };
+    
+    return statusMap[status] || status;
+  };
 
   // Функция для обновления статуса зон на основе сканирований
   const updateZoneStatus = useCallback((scans) => {
@@ -96,45 +183,6 @@ const Svg = () => {
     
     setZones(prev => ({ ...prev, ...zoneUpdates }));
   }, []);
-
-  // Функция для обновления позиций роботов
-  const updateRobotPositions = useCallback((robotData) => {
-    if (!robotData || !Array.isArray(robotData)) return;
-    
-    const updatedRobots = robotData.map(robot => {
-      // Находим существующего робота или создаем нового
-      const existingRobot = robots.find(r => r.id === robot.id || r.id === robot.robotId);
-      const coords = zoneToCoordinates(robot.currentZone || robot.zone);
-      
-      return {
-        id: robot.id || robot.robotId || existingRobot?.id || `R${Math.random().toString(36).substr(2, 4)}`,
-        x: coords.x || existingRobot?.x || 15 + 1 * 30,
-        y: coords.y || existingRobot?.y || 15 + 22 * 30,
-        battery: robot.batteryLevel || robot.battery || existingRobot?.battery || 100,
-        status: mapRobotStatus(robot.status || existingRobot?.status || 'active'),
-        lastUpdate: robot.lastUpdate || robot.timestamp || new Date().toISOString(),
-        currentZone: robot.currentZone || robot.zone
-      };
-    });
-    
-    setRobots(updatedRobots);
-  }, [robots, zoneToCoordinates]);
-
-  // Функция для преобразования статуса робота
-  const mapRobotStatus = (status) => {
-    const statusMap = {
-      'ACTIVE': 'active',
-      'CHARGING': 'active',
-      'SCANNING': 'active',
-      'LOW_BATTERY': 'low_battery',
-      'CRITICAL_BATTERY': 'low_battery',
-      'OFFLINE': 'offline',
-      'ERROR': 'offline',
-      'MAINTENANCE': 'offline'
-    };
-    
-    return statusMap[status] || status;
-  };
 
   // Подключение к WebSocket для реальных данных
   useEffect(() => {
@@ -422,7 +470,7 @@ const Svg = () => {
                   
                   {/* Всплывающая подсказка */}
                   <title>
-                    {`ID: ${robot.id} | Батарея: ${robot.battery}% | Статус: ${robot.status} | Зона: ${robot.currentZone || 'Неизвестно'} | Обновление: ${new Date(robot.lastUpdate).toLocaleTimeString()}`}
+                    {`ID: ${robot.id} | Батарея: ${robot.battery}% | Статус: ${robot.status} | Зона: ${robot.currentZone || 'Неизвестно'} | Ряд: ${robot.currentRow ?? '?'} | Полка: ${robot.currentShelf ?? '?'} | Обновление: ${new Date(robot.lastUpdate).toLocaleTimeString()}`}
                   </title>
                 </g>
               ))}

@@ -21,7 +21,7 @@ const AuthRootComponent = (props) => {
                 password
             };
             const user = await instance.post('api/auth/login', userInfo);
-            const token = instance.data.token;
+            const token = user.data.token;
             dispatch(login(user.data, token));
             localStorage.setItem('token', token);
             navigate('/dashboard');

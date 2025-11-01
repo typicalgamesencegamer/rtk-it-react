@@ -53,9 +53,9 @@ const initialState = {
             current_shelf: 0
         },
     },
-    map: {
-        
-    },
+map: {
+
+},
 };
 
 export const robotsSlice = createSlice({
@@ -63,7 +63,7 @@ export const robotsSlice = createSlice({
     initialState,
     reducers: {
         loadRobotsData(state, action) {
-            state.robots = action.payload;
+            state.allRobots = action.payload;
         }
     }
 })

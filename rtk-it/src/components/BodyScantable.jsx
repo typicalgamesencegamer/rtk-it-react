@@ -4,6 +4,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { addScan, togglePause, setAutoScroll } from '../store/slices/scantable';
 import { loadRobotsData } from '../store/slices/robots';
 import './scantable.css';
+import SockJS from 'sockjs-client'
+import Stomp from 'stompjs'
+
 
 const BodyScantable = () => {
 
@@ -82,34 +85,81 @@ const BodyScantable = () => {
     }
   }
 
-  let HttpsWebSocket = new WebSocket('http://localhost:8080');
+  // let HttpsWebSocket = new WebSocket('http://localhost:8080');
+  // useEffect(() => {
+  //   const token = localStorage.getItem('token');
+  //   const headers = {
+  //     "Authorization": `Bearer ${token}`
+  //   };
+
+  //   HttpsWebSocket.onopen = () => {
+  //     console.log('WebSocket соединение установлено. Отправляю токен');
+  //     // Отправляем токен как первое сообщение после успешного подключения
+  //     HttpsWebSocket.send(JSON.stringify({ type: 'auth', token }));
+  //     HttpsWebSocket.send(JSON.stringify({ type: 'subscribe', topic: 'robots' }));
+
+  //   };
+
+  //   HttpsWebSocket.onmessage = (event) => {
+  //     if (event.data.topic === 'robots') {
+  //       setRobots(() => [event.data]);
+  //       dispatch(loadRobotsData(robots.data));
+  //     }
+  //     if (event.data.topic === 'inventory_history') {
+  //       dispatch(addScan(event.data));
+  //     }
+  //   };
+
+  // }, [])
+
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const headers = {
-      "Authorization": `Bearer ${token}`
+    
+    // Подключение через SockJS
+    const socket = new SockJS('http://localhost:8080/ws');
+    const stompClient = Stomp.over(socket);
+    
+    // Отключаем дебаг (опционально)
+    stompClient.debug = null;
+    
+    stompClient.connect({
+        "Authorization": `Bearer ${token}`
+    }, function(frame) {
+        console.log('WebSocket connected:', frame);
+        
+        // Подписка на топики
+        stompClient.subscribe('/topic/robots', function(message) {
+            const robots = JSON.parse(message.body);
+            console.log('Received robots:', robots);
+            setRobots(robots);
+            dispatch(loadRobotsData(robots));
+        });
+        
+        stompClient.subscribe('/topic/inventory_history', function(message) {
+            const inventory = JSON.parse(message.body);
+            console.log('Received inventory:', inventory);
+            dispatch(addScan(inventory));
+        });
+        
+        // Запрос данных после подключения
+        stompClient.send('/app/request-robots', {});
+        stompClient.send('/app/request-inventory_history', {});
+        
+    }, function(error) {
+        console.error('WebSocket error:', error);
+    });
+    
+    // Очистка при размонтировании
+    return () => {
+        if (stompClient) {
+            stompClient.disconnect();
+        }
     };
-
-    HttpsWebSocket.onopen = () => {
-      console.log('WebSocket соединение установлено. Отправляю токен');
-      // Отправляем токен как первое сообщение после успешного подключения
-      HttpsWebSocket.send(JSON.stringify({ type: 'auth', token }));
-    };
-
-    HttpsWebSocket.onmessage = (event) => {
-      if (event.data.topic === 'robots') {
-        setRobots(() => [event.data]);
-        dispatch(loadRobotsData(robots.data));
-      }
-      if (event.data.topic === 'inventory_history') {
-        dispatch(addScan(event.data));
-      }
-    };
-
-  }, [])
+}, [dispatch]);
 
   const handlePauseClick = () => {
     dispatch(togglePause());
-    HttpsWebSocket.send(JSON.stringify({ type: 'subscribe', topic: 'inventory_history' }));
+    // HttpsWebSocket.send(JSON.stringify({ type: 'subscribe', topic: 'inventory_history' }));
   };
 
   const getStatusBadgeClass = (status) => {

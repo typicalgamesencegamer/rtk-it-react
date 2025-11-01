@@ -4,6 +4,7 @@ import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import React from 'react'
 import { useState, useRef, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 
 const Svg = () => {      
   const [robots, setRobots] = useState([
@@ -13,6 +14,8 @@ const Svg = () => {
     { id: 'R004', x: 15 + 1 * 30, y: 15 + 25 * 30, battery: 92, status: 'active', lastUpdate: '2024-01-15 14:31:45' },
     { id: 'R005', x: 15 + 1 * 30, y: 15 + 26 * 30, battery: 45, status: 'active', lastUpdate: '2024-01-15 14:31:45' },
   ]);
+
+  const allRobots = useSelector(state => state.allRobots);
 
   const [zones, setZones] = useState({});
   const [scale, setScale] = useState(1.9);
@@ -140,7 +143,7 @@ const Svg = () => {
                 />
               ))
             )}
-            {robots.map(robot => (
+            {allRobots.map(robot => (
               <g key={robot.id} className="robot-group">
                 <circle
                   cx={robot.x}

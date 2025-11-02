@@ -9,6 +9,11 @@ import BodyScantable from "./BodyScantable";
 import BodyScant from "./bodyScant";
 import WarehouseMap from "./newSvg";
 import { instance } from "../axios/axios";
+import { 
+  Snackbar, 
+  Alert,
+  CircularProgress 
+} from '@mui/material';
 
 function Input(props) {
   return (
@@ -28,8 +33,80 @@ function LinkA(props) {
   )
 }
 
+// function Header() {
+//   const [isModalOpen, setIsModalOpen] = useState(false);
+//   const navigate = useNavigate();
+
+//   function handleClick(id) {
+//     switch (id) {
+//       case "current_mon_btn":
+//         navigate('/dashboard');
+//         break;
+//       case "history_mon_btn":
+//         navigate('/history');
+//         break;
+//       default:
+//         break;
+//     }
+//   }
+
+//   const handleClickDownloadCSV = async (e) => {
+//     e.preventDefault();
+//     try {
+//       const token = localStorage.getItem('token');
+//       const CSVFile = await instance.get('/api/export-to-csv', token);
+
+//     } catch (e) {
+//       return e;
+//     }
+
+//   };
+
+//   return (
+//     <>
+//       <AppBar color="default" sx={{
+//         flexDirection: 'row',
+//         justifyContent: 'space-between'
+//       }} position="static">
+//         <div className="img-logo"></div>
+//         <h1 className="h_header">Умный склад</h1>
+//         <div className="user_info">
+//           <p className="user_name">user name</p>
+//           <p className="user_role">user role</p>
+//           <Button variant="contained" color="secondary" sx={{ mt: '37px', mr: '10px', textDecorationStyle: 'double' }}>Выход</Button>
+//         </div>
+//       </AppBar>
+
+//       <div className='header__navigation-menu'>
+//         <div className="header__navigation_item">
+//           <Button id="current_mon_btn" className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={(event) => handleClick(event.target.id)}>Текущий мониторинг</Button>
+//         </div>
+//         <div className="header__navigation_item">
+//           <Button id="history_mon_btn" className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={(event) => handleClick(event.target.id)}>Исторические данные</Button>
+//         </div>
+//         <div className="header__navigation_item">
+//           <Button className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={() => { setIsModalOpen(true) }}>Загрузить CSV</Button>
+//         </div>
+//         <div className="header__navigation_item">
+//           <Button className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={() => {handleClickDownloadCSV()}}>Скачать CSV</Button>
+//         </div>
+//         <CSVUploadModal open={isModalOpen} onClose={() => setIsModalOpen(false)} />
+
+//       </div>
+//     </>
+//   )
+// }
+
+
+
 function Header() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ 
+    open: false, 
+    message: '', 
+    severity: 'success' 
+  });
   const navigate = useNavigate();
 
   function handleClick(id) {
@@ -47,14 +124,81 @@ function Header() {
 
   const handleClickDownloadCSV = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    
     try {
       const token = localStorage.getItem('token');
-      const CSVFile = await instance.get('/api/export-to-csv', token);
+      if (!token) {
+        throw new Error('Токен авторизации не найден');
+      }
 
-    } catch (e) {
-      return e;
+      // Вариант 1: Если используете instance (axios)
+      const response = await instance.get('/api/export-to-csv', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        responseType: 'blob' // Важно для файлов
+      });
+
+      // Вариант 2: Если используете fetch (раскомментируйте если нужно)
+      /*
+      const response = await fetch('http://localhost:8080/api/export-to-csv', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Ошибка сервера: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      */
+
+      // Создаем URL для скачивания
+      const blob = response.data; // Для axios
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Получаем имя файла из заголовков или используем по умолчанию
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = 'warehouse_report.csv';
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      setSnackbar({
+        open: true,
+        message: `Файл ${filename} успешно скачан`,
+        severity: 'success'
+      });
+      
+    } catch (error) {
+      console.error('Ошибка при скачивании CSV:', error);
+      setSnackbar({
+        open: true,
+        message: `Ошибка при скачивании: ${error.response?.data?.message || error.message}`,
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
     }
+  };
 
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
   return (
@@ -74,23 +218,76 @@ function Header() {
 
       <div className='header__navigation-menu'>
         <div className="header__navigation_item">
-          <Button id="current_mon_btn" className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={(event) => handleClick(event.target.id)}>Текущий мониторинг</Button>
+          <Button 
+            id="current_mon_btn" 
+            className="header__navigation-menu_btn" 
+            variant="text" 
+            color="inherit" 
+            sx={{ width: '300px' }} 
+            onClick={(event) => handleClick(event.target.id)}
+          >
+            Текущий мониторинг
+          </Button>
         </div>
         <div className="header__navigation_item">
-          <Button id="history_mon_btn" className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={(event) => handleClick(event.target.id)}>Исторические данные</Button>
+          <Button 
+            id="history_mon_btn" 
+            className="header__navigation-menu_btn" 
+            variant="text" 
+            color="inherit" 
+            sx={{ width: '300px' }} 
+            onClick={(event) => handleClick(event.target.id)}
+          >
+            Исторические данные
+          </Button>
         </div>
         <div className="header__navigation_item">
-          <Button className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={() => { setIsModalOpen(true) }}>Загрузить CSV</Button>
+          <Button 
+            className="header__navigation-menu_btn" 
+            variant="text" 
+            color="inherit" 
+            sx={{ width: '300px' }} 
+            onClick={() => { setIsModalOpen(true) }}
+          >
+            Загрузить CSV
+          </Button>
         </div>
         <div className="header__navigation_item">
-          <Button className="header__navigation-menu_btn" variant="text" color="inherit" sx={{ width: '300px' }} onClick={() => {handleClickDownloadCSV()}}>Скачать CSV</Button>
+          <Button 
+            className="header__navigation-menu_btn" 
+            variant="text" 
+            color="inherit" 
+            sx={{ width: '300px' }} 
+            onClick={handleClickDownloadCSV}
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : null}
+          >
+            {loading ? 'Скачивание...' : 'Скачать CSV'}
+          </Button>
         </div>
+        
         <CSVUploadModal open={isModalOpen} onClose={() => setIsModalOpen(false)} />
-
       </div>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
-  )
+  );
 }
+
+export default Header;
 
 function Body() {
   return (

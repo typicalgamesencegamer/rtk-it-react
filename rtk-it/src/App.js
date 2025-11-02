@@ -1,4 +1,4 @@
-import {Route, Routes} from 'react-router-dom';
+import {Route, Routes, Navigate} from 'react-router-dom';
 import './App.css';
 
 import HomePage from './pages/HomePage';
@@ -6,6 +6,8 @@ import PrivateRoute from './router/privateRoute';
 import DashboardPage from './pages/DashboardPage';
 import AuthRootComponent from './pages/auth/AuthRootComponent';
 import HystoryPage from './pages/HystoryPage';
+
+
 
 function App() {
   return (
@@ -17,7 +19,7 @@ function App() {
         </Route>
 
 
-        <Route path='/' element={<HomePage />} />
+        <Route path='/' element={<Navigate to="/login" replace/>} />
         <Route path="login" element={<AuthRootComponent />} />
         <Route path="register" element={<AuthRootComponent />} />
       </Routes>

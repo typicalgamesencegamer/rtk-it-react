@@ -68,7 +68,7 @@ const BodyScant = () => {
       : () => { };
 
     const headers = {
-      Authorization: `Bearer ${token}`
+      "Authorization": `Bearer ${token}`
     };
 
     stompClient.connect(headers,

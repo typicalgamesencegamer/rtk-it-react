@@ -8,16 +8,16 @@ import { useSelector, useDispatch } from 'react-redux';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
 
-const Svg = () => {      
+const Svg = () => {
   const dispatch = useDispatch();
   const scansFromStore = useSelector(state => state.scans?.scans || []);
-  
+
   const [robots, setRobots] = useState([
-    { id: 'R001', x: 15 + 1 * 30, y: 15 + 22 * 30, battery: 85, status: 'active', lastUpdate: '2024-01-15 14:30:25' },
-    { id: 'R002', x: 15 + 1 * 30, y: 15 + 23 * 30, battery: 25, status: 'low_battery', lastUpdate: '2024-01-15 14:28:10' },
-    { id: 'R003', x: 15 + 1 * 30, y: 15 + 24 * 30, battery: 0, status: 'offline', lastUpdate: '2024-01-15 13:45:00' },
-    { id: 'R004', x: 15 + 1 * 30, y: 15 + 25 * 30, battery: 92, status: 'active', lastUpdate: '2024-01-15 14:31:45' },
-    { id: 'R005', x: 15 + 1 * 30, y: 15 + 26 * 30, battery: 45, status: 'active', lastUpdate: '2024-01-15 14:31:45' },
+    { id: 'R001', x: 0, y: 0, battery: 85, status: 'active', lastUpdate: '2024-01-15 14:30:25' },
+    { id: 'R002', x: 0, y: 0, battery: 25, status: 'low_battery', lastUpdate: '2024-01-15 14:28:10' },
+    { id: 'R003', x: 0, y: 0, battery: 0, status: 'offline', lastUpdate: '2024-01-15 13:45:00' },
+    { id: 'R004', x: 0, y: 0, battery: 92, status: 'active', lastUpdate: '2024-01-15 14:31:45' },
+    { id: 'R005', x: 0, y: 0, battery: 45, status: 'active', lastUpdate: '2024-01-15 14:31:45' },
   ]);
 
   const [zones, setZones] = useState({});
@@ -37,36 +37,34 @@ const Svg = () => {
     if (!zone || row === undefined || shelf === undefined) {
       return { x: 0, y: 0 };
     }
-    
+
     const zoneLetter = zone.toUpperCase();
     const zoneIndex = zoneLetter.charCodeAt(0) - 65; // A=0, B=1, ..., O=14
-    
+
     // Зоны расположены в матрице 5 строк × 3 столбца
     const zonesPerRow = 3;
-    const zoneWidth = 8;   // клеток по X (ряды)
-    const zoneHeight = 10; // клеток по Y (полки)
-    
+
     // Расчет позиции зоны в матрице
-    const matrixRow = Math.floor(zoneIndex / zonesPerRow); // 0-4
-    const matrixCol = zoneIndex % zonesPerRow; // 0-2
-    
+    const matrixCol = 105 + 240 * (zoneIndex % zonesPerRow);
+    const matrixRow = 45 + 300 * Math.floor(zoneIndex / zonesPerRow);// 0-4
+
     // Координаты внутри зоны + смещение по матрице
-    const cellX = matrixCol * zoneWidth + row;
-    const cellY = matrixRow * zoneHeight + shelf;
-    
+    const cellX = matrixCol + (row * 30);
+    const cellY = matrixRow + (shelf * 30);
+
     // Преобразование в пиксели (начинаем с колонки C - индекс 2)
-    const x = 90 + (cellX + 2) * 30 + 15;
-    const y = 30 + cellY * 30 + 15;
-    
+    const x = cellX;
+    const y = cellY;
+
     console.log(`Robot coordinates: zone=${zone} (index=${zoneIndex}, matrix=[${matrixRow},${matrixCol}]), row=${row}, shelf=${shelf} -> x=${x}, y=${y}`);
-    
+
     return { x, y };
   }, []);
 
   // Функция для преобразования координат зоны в пиксели
   const zoneToCoordinates = useCallback((zoneString) => {
     if (!zoneString) return { x: 0, y: 0 };
-    
+
     const match = zoneString.match(/^([A-O])$/i);
     if (match) {
       const letter = match[1];
@@ -74,56 +72,56 @@ const Svg = () => {
       const zonesPerRow = 3;
       const zoneWidth = 8;
       const zoneHeight = 10;
-      
+
       const matrixRow = Math.floor(zoneIndex / zonesPerRow);
       const matrixCol = zoneIndex % zonesPerRow;
-      
+
       // Центр зоны
       const centerX = matrixCol * zoneWidth + zoneWidth / 2;
       const centerY = matrixRow * zoneHeight + zoneHeight / 2;
-      
+
       return {
         x: 90 + (centerX + 2) * 30 + 15,
         y: 30 + centerY * 30 + 15
       };
     }
-    
+
     return { x: 0, y: 0 };
   }, []);
 
   // Функция для обновления позиций роботов
   const updateRobotPositions = useCallback((robotData) => {
     if (!robotData || !Array.isArray(robotData)) return;
-    
+
     const updatedRobots = robotData.map(robot => {
       // Проверяем валидность координат
       const zone = robot.current_zone || robot.zone;
       const row = robot.current_row || robot.row;
       const shelf = robot.current_shelf || robot.shelf;
-      
+
       if (!zone || row === undefined || shelf === undefined) {
         console.warn(`Invalid coordinates for robot ${robot.id}: zone=${zone}, row=${row}, shelf=${shelf}`);
         return null;
       }
-      
+
       // Проверяем диапазоны
       const zoneIndex = zone.toUpperCase().charCodeAt(0) - 65;
       if (zoneIndex < 0 || zoneIndex > 14) {
         console.warn(`Zone out of range for robot ${robot.id}: ${zone} (A-O expected)`);
         return null;
       }
-      
+
       if (row < 0 || row >= 8 || shelf < 0 || shelf >= 10) {
         console.warn(`Coordinates out of range for robot ${robot.id}: row=${row} (0-7), shelf=${shelf} (0-9)`);
         return null;
       }
-      
+
       // Получаем координаты из данных робота
       const coords = robotToCoordinates(zone, row, shelf);
-      
+
       // Находим существующего робота или создаем нового
       const existingRobot = robots.find(r => r.id === robot.id || r.id === robot.robotId);
-      
+
       return {
         id: robot.id || robot.robotId || existingRobot?.id || `R${Math.random().toString(36).substr(2, 4)}`,
         x: coords.x,
@@ -136,7 +134,7 @@ const Svg = () => {
         currentShelf: shelf
       };
     }).filter(robot => robot !== null);
-    
+
     setRobots(updatedRobots);
   }, [robots, robotToCoordinates]);
 
@@ -152,14 +150,14 @@ const Svg = () => {
       'ERROR': 'offline',
       'MAINTENANCE': 'offline'
     };
-    
+
     return statusMap[status] || status;
   };
 
   // Функция для обновления статуса зон на основе сканирований
   const updateZoneStatus = useCallback((scans) => {
     const zoneUpdates = {};
-    
+
     scans.forEach(scan => {
       if (scan.zone) {
         // Определяем статус зоны на основе статуса сканирования
@@ -171,7 +169,7 @@ const Svg = () => {
         } else if (scan.status === 'OK') {
           status = 'recent';
         }
-        
+
         zoneUpdates[scan.zone] = {
           status,
           lastScan: scan.scannedAt || scan.time,
@@ -180,7 +178,7 @@ const Svg = () => {
         };
       }
     });
-    
+
     setZones(prev => ({ ...prev, ...zoneUpdates }));
   }, []);
 
@@ -193,25 +191,26 @@ const Svg = () => {
     }
 
     setWsStatus('connecting');
-    
+
     const socket = new SockJS('http://localhost:8080/ws');
     const stompClient = Stomp.over(socket);
-    
-    stompClient.debug = process.env.NODE_ENV === 'development' 
-      ? console.log 
-      : () => {};
-    
+
+    stompClient.debug = process.env.NODE_ENV === 'development'
+      ? console.log
+      : () => { };
+
     const headers = {
       Authorization: `Bearer ${token}`
     };
 
-    stompClient.connect(headers, 
+    stompClient.connect(headers,
       // onConnect
       (frame) => {
+        console.log(headers);
         console.log('SVG WebSocket connected:', frame);
         setWsStatus('connected');
         stompClientRef.current = stompClient;
-        
+
         // Подписка на топик роботов
         stompClient.subscribe('/topic/robots', (message) => {
           try {
@@ -222,13 +221,13 @@ const Svg = () => {
             console.error('Error parsing robots data in SVG:', error);
           }
         });
-        
+
         // Подписка на топик активных сканирований
         stompClient.subscribe('/topic/active_scans', (message) => {
           try {
             const activeScans = JSON.parse(message.body);
             console.log('Received active scans:', activeScans);
-            
+
             setRealTimeData(prev => ({
               ...prev,
               activeScans: Array.isArray(activeScans) ? activeScans : [activeScans]
@@ -237,13 +236,13 @@ const Svg = () => {
             console.error('Error parsing active scans:', error);
           }
         });
-        
+
         // Подписка на топик статуса зон
         stompClient.subscribe('/topic/zone_status', (message) => {
           try {
             const zoneStatus = JSON.parse(message.body);
             console.log('Received zone status:', zoneStatus);
-            
+
             setRealTimeData(prev => ({
               ...prev,
               zoneStatus: zoneStatus
@@ -252,19 +251,19 @@ const Svg = () => {
             console.error('Error parsing zone status:', error);
           }
         });
-        
+
         // Запрос начальных данных
         stompClient.send('/app/request-robots', {}, JSON.stringify({}));
         stompClient.send('/app/request-zone_status', {}, JSON.stringify({}));
-        
-      }, 
+
+      },
       // onError
       (error) => {
         console.error('SVG WebSocket connection error:', error);
         setWsStatus('error');
       }
     );
-    
+
     return () => {
       if (stompClient && stompClient.connected) {
         stompClient.disconnect(() => {
@@ -306,7 +305,7 @@ const Svg = () => {
         default: return '#E5E7EB';
       }
     }
-    
+
     // Проверяем локальные данные
     if (zones[zone]) {
       switch (zones[zone].status) {
@@ -316,7 +315,7 @@ const Svg = () => {
         default: return '#F3F4F6';
       }
     }
-    
+
     // Стандартный цвет
     return '#F3F4F6';
   };
@@ -346,46 +345,46 @@ const Svg = () => {
             </IconButton>
           </div>
           <div className="map-wrapper">
-            <svg 
-              width="100%" 
-              height="100%" 
+            <svg
+              width="100%"
+              height="100%"
               viewBox="0 0 810 1600"
               style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }}
             >
 
               <defs>
                 <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-                  <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#E5E7EB" strokeWidth="1"/>
+                  <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#E5E7EB" strokeWidth="1" />
                 </pattern>
-                
+
                 {/* Градиенты для анимации */}
                 <radialGradient id="pulse" cx="50%" cy="50%" r="50%">
                   <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.7" />
                   <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
                 </radialGradient>
               </defs>
-              
-              <rect width="100%" height="1531" fill="url(#grid)"/>
-              
+
+              <rect width="100%" height="1531" fill="url(#grid)" />
+
               {/* Нумерация строк */}
               {Array.from({ length: 50 }, (_, i) => (
                 <text key={i} x="5" y={45 + i * 30} className="grid-label">{i + 1}</text>
               ))}
-              
+
               {/* Буквы столбцов */}
               {Array.from({ length: 26 }, (_, i) => (
                 <text key={i} x={35 + i * 30} y="15" className="grid-label">
                   {String.fromCharCode(65 + i)}
                 </text>
               ))}
-              
+
               {/* Зоны склада */}
-              {Array.from({ length: 24 }, (_, col) => 
+              {Array.from({ length: 24 }, (_, col) =>
                 Array.from({ length: 50 }, (_, row) => {
                   const zone = `${String.fromCharCode(65 + col)}-${row + 1}`;
                   const activeScans = getActiveScansForZone(zone);
                   const hasActiveScan = activeScans.length > 0;
-                  
+
                   return (
                     <g key={`${col}-${row}`}>
                       <rect
@@ -397,7 +396,7 @@ const Svg = () => {
                         stroke="#D1D5DB"
                         strokeWidth="1"
                       />
-                      
+
                       {/* Анимация для активных сканирований */}
                       {hasActiveScan && (
                         <circle
@@ -426,7 +425,7 @@ const Svg = () => {
                   );
                 })
               )}
-              
+
               {/* Роботы */}
               {robots.map(robot => (
                 <g key={robot.id} className="robot-group">
@@ -447,7 +446,7 @@ const Svg = () => {
                     fill={robot.battery > 20 ? '#10B981' : '#EF4444'}
                     rx="2"
                   />
-                  
+
                   <circle
                     cx={robot.x}
                     cy={robot.y}
@@ -456,25 +455,25 @@ const Svg = () => {
                     stroke="#FFFFFF"
                     strokeWidth="2"
                   />
-                  
-                  <text 
-                    x={robot.x} 
-                    y={robot.y + 4} 
-                    textAnchor="middle" 
-                    fill="white" 
-                    fontSize="8" 
+
+                  <text
+                    x={robot.x}
+                    y={robot.y + 4}
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize="8"
                     fontWeight="bold"
                   >
                     {robot.id.replace('R', '')}
                   </text>
-                  
+
                   {/* Всплывающая подсказка */}
                   <title>
                     {`ID: ${robot.id} | Батарея: ${robot.battery}% | Статус: ${robot.status} | Зона: ${robot.currentZone || 'Неизвестно'} | Ряд: ${robot.currentRow ?? '?'} | Полка: ${robot.currentShelf ?? '?'} | Обновление: ${new Date(robot.lastUpdate).toLocaleTimeString()}`}
                   </title>
                 </g>
               ))}
-              
+
               {/* Легенда */}
               <g className="legend" transform="translate(0, 1531)">
                 <rect x="0" y="0" width="180" height="80" fill="white" stroke="#E5E7EB" rx="4" />

@@ -59,7 +59,7 @@ const BodyScant = () => {
 
     setConnectionStatus('connecting');
 
-    const socket = new SockJS('http://localhost:8080/ws');
+    const socket = new SockJS('http://84.201.169.166:8080/ws');
     const stompClient = Stomp.over(socket);
 
     // Отключаем дебаг в продакшене

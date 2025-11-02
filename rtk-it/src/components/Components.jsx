@@ -72,6 +72,7 @@ function Header() {
   const navigate = useNavigate();
 
   function handleClick(id) {
+    
     switch (id) {
       case "current_mon_btn":
         navigate('/dashboard');

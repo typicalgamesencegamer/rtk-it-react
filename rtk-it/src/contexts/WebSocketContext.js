@@ -39,7 +39,7 @@ export const WebSocketProvider = ({ children }) => {
 
             setConnectionState('connecting');
 
-            const socket = new SockJS('http://localhost:8080/ws');
+            const socket = new SockJS('http://84.201.169.166:8080/ws');
             const client = Stomp.over(socket);
 
             client.debug = process.env.NODE_ENV === 'development' ? console.log : () => { };

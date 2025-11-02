@@ -40,7 +40,9 @@ const Svg = () => {
 
   // Функция для преобразования координат робота в пиксели (матрица 5x3)
   const robotToCoordinates = useCallback((zone, row, shelf, id) => {
-    if (!zone || row === undefined || shelf === undefined) {
+    // Проверяем, что значения определены (включая 0)
+    if (!zone || row === undefined || row === null || shelf === undefined || shelf === null) {
+      console.warn(`Invalid coordinates: zone=${zone}, row=${row}, shelf=${shelf}`);
       return { x: 0, y: 0 };
     }
 
@@ -55,15 +57,18 @@ const Svg = () => {
     const matrixRow = 45 + 300 * Math.floor(zoneIndex / zonesPerRow);// 0-4
 
     // Координаты внутри зоны + смещение по матрице
-    const cellX = matrixCol + ((row - 1) * 30);
-    const cellY = matrixRow + ((shelf - 1) * 30);
+    // row и shelf могут быть 0, поэтому используем их как есть
+    const cellX = matrixCol + (row * 30);
+    const cellY = matrixRow + (shelf * 30);
 
-    // Преобразование в пиксели (начинаем с колонки C - индекс 2)
+    // Преобразование в пиксели
     let x = cellX;
     let y = cellY;
+    
+    // Специальная обработка для зоны Z (индекс 25)
     if (zoneIndex === 25) {
       x = 15 + 1 * 30;
-      y = 15 + 22 * id[4] * 30;
+      y = 15 + 22 + (id ? id[5] || 0 : 0) * 30;
     }
 
     console.log(`Robot coordinates: zone=${zone} (index=${zoneIndex}, matrix=[${matrixRow},${matrixCol}]), row=${row}, shelf=${shelf} -> x=${x}, y=${y}`);
@@ -76,26 +81,28 @@ const Svg = () => {
     if (!robotData || !Array.isArray(robotData)) return;
 
     const updatedRobots = robotData.map(robot => {
-      // Проверяем валидность координат
+      // Проверяем валидность координат (включая 0)
       const zone = robot.current_zone || robot.zone;
-      const row = robot.current_row || robot.row;
-      const shelf = robot.current_shelf || robot.shelf;
+      const row = robot.current_row ?? robot.row; // Используем ?? чтобы 0 не превращался в undefined
+      const shelf = robot.current_shelf ?? robot.shelf; // Используем ?? чтобы 0 не превращался в undefined
       const robotid = robot.id || robot.robotId;
 
-      if (!zone || row === undefined || shelf === undefined) {
+      // Проверяем, что значения определены (включая 0)
+      if (!zone || row === undefined || row === null || shelf === undefined || shelf === null) {
         console.warn(`Invalid coordinates for robot ${robot.id}: zone=${zone}, row=${row}, shelf=${shelf}`);
         return null;
       }
 
-      // Проверяем диапазоны
+      // Проверяем диапазоны (теперь учитываем, что row и shelf могут быть 0)
       const zoneIndex = zone.toUpperCase().charCodeAt(0) - 65;
-      if (zoneIndex < 0 || zoneIndex > 14 && zoneIndex != 25) {
-        console.warn(`Zone out of range for robot ${robot.id}: ${zone} (A-O expected)`);
+      if (zoneIndex < 0 || (zoneIndex > 14 && zoneIndex != 25)) {
+        console.warn(`Zone out of range for robot ${robot.id}: ${zone} (A-O or Z expected)`);
         return null;
       }
 
-      if (row < -1 || row >= 9 || shelf < -1 || shelf >= 11) {
-        console.warn(`Coordinates out of range for robot ${robot.id}: row=${row} (1-8), shelf=${shelf} (1-10)`);
+      // Обновляем диапазоны проверки для row и shelf (теперь включаем 0)
+      if (row < 0 || row >= 9 || shelf < 0 || shelf >= 11) {
+        console.warn(`Coordinates out of range for robot ${robot.id}: row=${row} (0-7), shelf=${shelf} (0-9)`);
         return null;
       }
 
@@ -201,23 +208,10 @@ const Svg = () => {
     });
 
     // Подписка на топик статуса зон
-    stompClient.subscribe('/topic/zone_status', (message) => {
-      try {
-        const zoneStatus = JSON.parse(message.body);
-        console.log('Received zone status:', zoneStatus);
-
-        setRealTimeData(prev => ({
-          ...prev,
-          zoneStatus: zoneStatus
-        }));
-      } catch (error) {
-        console.error('Error parsing zone status:', error);
-      }
-    });
+    
 
     // Запрос начальных данных
     stompClient.send('/app/request-robots', {}, JSON.stringify({}));
-    stompClient.send('/app/request-zone_status', {}, JSON.stringify({}));
 
     isSubscribedRef.current = true;
   }, [updateRobotPositions]);
@@ -518,23 +512,23 @@ const Svg = () => {
 
                   {/* Всплывающая подсказка */}
                   <title>
-                    {`ID: ${robot.id} | Батарея: ${robot.battery}% | Статус: ${robot.status} | Зона: ${robot.currentZone || 'Неизвестно'} | Ряд: ${robot.currentRow + 1 ?? '?'} | Полка: ${robot.currentShelf + 1 ?? '?'} | Обновление: ${new Date(robot.lastUpdate).toLocaleTimeString()}`}
+                    {`ID: ${robot.id} | Батарея: ${robot.battery}% | Статус: ${robot.status} | Зона: ${robot.currentZone || 'Неизвестно'} | Ряд: ${(robot.currentRow ?? 0) + 1} | Полка: ${(robot.currentShelf ?? 0) + 1} | Обновление: ${new Date(robot.lastUpdate).toLocaleTimeString()}`}
                   </title>
                 </g>
               ))}
 
               {/* Легенда */}
               <g className="legend" transform="translate(0, 1531)">
-                <rect x="0" y="0" width="1200" height="600" fill="white" stroke="#E5E7EB" rx="12" />
-                <text x="30" y="45" fontSize="60" fontWeight="bold">Легенда:</text>
-                <circle cx="45" cy="90" r="15" fill="#10B981" />
-                <text x="75" y="99" fontSize="48">Активный</text>
-                <circle cx="45" cy="135" r="15" fill="#F59E0B" />
-                <text x="75" y="144" fontSize="48">Низкий заряд</text>
-                <circle cx="45" cy="180" r="15" fill="#EF4444" />
-                <text x="75" y="189" fontSize="48">Оффлайн</text>
-                <text x="30" y="225" fontSize="48" fill="#6B7280">
-                  Обновлено: 
+                <rect x="0" y="0" width="180" height="80" fill="white" stroke="#E5E7EB" rx="4" />
+                <text x="10" y="15" fontSize="10" fontWeight="bold">Легенда:</text>
+                <circle cx="15" cy="30" r="5" fill="#10B981" />
+                <text x="25" y="33" fontSize="8">Активный</text>
+                <circle cx="15" cy="45" r="5" fill="#F59E0B" />
+                <text x="25" y="48" fontSize="8">Низкий заряд</text>
+                <circle cx="15" cy="60" r="5" fill="#EF4444" />
+                <text x="25" y="63" fontSize="8">Оффлайн</text>
+                <text x="10" y="75" fontSize="8" fill="#6B7280">
+                  WS: {wsStatus} | Роботов: {robots.length}
                 </text>
               </g>
             </svg>

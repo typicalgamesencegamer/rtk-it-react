@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useCallback} from "react";
 import { useLocation, useNavigate } from "react-router";
-import Svg from "./svg2";
+import Svg from "./svg3";
 import { AppBar, Box, Button, Typography, } from "@mui/material";
 import CSVUploadModal from "./CSVModal";
 import { useDispatch, useSelector } from "react-redux";
 import { loadRobotsData } from "../store/slices/robots";
-import BodyScantable from "./BodyScantable-NOUSE";
+import BodyScantable from "./NOUSE_BodyScantable";
 import BodyScant from "./bodyScant";
 import BodyAIPredict from "./BodyAIPrediction";
 import BodyInfo from "./BodyInfo";
-import WarehouseMap from "./newSvg";
+import WarehouseMap from "./NOUSE_newSvg";
 import { instance } from "../axios/axios";
 import {
   TrendingUp,
@@ -163,6 +163,8 @@ function Header() {
     setSnackbar({ ...snackbar, open: false });
   };
 
+  const user = useSelector(state => state.auth.user);
+
   return (
     <>
       <AppBar color="default" sx={{
@@ -172,8 +174,8 @@ function Header() {
         <div className="img-logo"></div>
         <h1 className="h_header">Умный склад</h1>
         <div className="user_info">
-          <p className="user_name">user name</p>
-          <p className="user_role">user role</p>
+          <p className="user_name">{user.name}</p>
+          <p className="user_role">{user.role}</p>
           <Button variant="contained" color="secondary" sx={{ mt: '37px', mr: '10px', textDecorationStyle: 'double' }}>Выход</Button>
         </div>
       </AppBar>

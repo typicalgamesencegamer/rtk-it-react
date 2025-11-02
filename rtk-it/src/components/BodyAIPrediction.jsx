@@ -71,13 +71,13 @@ const BodyAIPredict = () => {
 
         try {
             // Замените URL на ваш реальный эндпоинт API
-            const response = await instance.get('/api/ai-prediction', {
+            const response = await instance.get('/api/ai-predictions', {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
 
-            setPredictions(response.data.predictions);
+            setPredictions(response.data);
             setLastUpdated(new Date());
         } catch (err) {
             console.error('Ошибка при получении прогнозов:', err);
@@ -148,6 +148,11 @@ const BodyAIPredict = () => {
                         onClick={fetchPredictions}
                         disabled={loading}
                         startIcon={loading ? <CircularProgress size={16} /> : <TrendingUp />}
+                        sx={{
+                            px: 3, // Фиксированные отступы по горизонтали
+                            width: 'fit-content', // Ширина по содержимому
+                            minWidth: 'max-content', // Минимальная ширина чтобы вместить текст
+                        }}
                     >
                         {loading ? 'Обновление...' : 'Обновить прогноз'}
                     </Button>
@@ -168,26 +173,18 @@ const BodyAIPredict = () => {
                                 <Warning className="warning-icon" />
                                 <div className="product-name">{prediction.product_id}</div>
                             </div>
-                            <div className="confidence-section">
-                                <div
-                                    className="confidence-indicator"
-                                    style={{ backgroundColor: getConfidenceColor(prediction.confidence_score) }}
-                                >
-                                    {prediction.confidence_score}%
-                                </div>
-                                <div className="confidence-label">достоверность</div>
-                            </div>
+
                         </div>
 
                         <div className="prediction-details">
                             <div className="detail-item">
                                 <Inventory className="detail-icon" />
                                 <span>Дней до исчерпания остатка: </span>
-                                <strong>{prediction.days_until_stockout} шт.</strong>
+                                <strong>{prediction.days_until_stockout}</strong>
                             </div>
                             <div className="detail-item">
                                 <CalendarToday className="detail-icon" />
-                                <span>Прогноз исчерпания: </span>
+                                <span>Дата прогноза: </span>
                                 <strong>{formatDate(prediction.prediction_date)}</strong>
                             </div>
                             <div className="detail-item">
@@ -200,13 +197,7 @@ const BodyAIPredict = () => {
                         </div>
 
                         <div className="prediction-actions">
-                            <Button
-                                size="small"
-                                variant="text"
-                            // onClick={() => updateSinglePrediction(prediction.id)}
-                            >
-                                Обновить прогноз
-                            </Button>
+
                         </div>
                     </div>
                 ))}

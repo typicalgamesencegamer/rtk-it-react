@@ -43,23 +43,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
 
-function Input(props) {
-  return (
-    <>
-      <input type={props.type} placeholder={props.placeholder} value={props.value} onChange={props.onChange}></input>
-    </>
-  )
-}
 
-
-
-function LinkA(props) {
-  return (
-    <>
-      <a>{props.text}</a>
-    </>
-  )
-}
 
 function Header() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,6 +54,7 @@ function Header() {
     severity: 'success'
   });
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   function handleClick(id) {
     
@@ -78,6 +63,7 @@ function Header() {
         navigate('/dashboard');
         break;
       case "history_mon_btn":
+        dispatch(authHistory());
         navigate('/history');
         break;
       default:

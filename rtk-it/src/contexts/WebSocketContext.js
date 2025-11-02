@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
 
@@ -14,8 +14,8 @@ export const useWebSocket = () => {
 
 export const WebSocketProvider = ({ children }) => {
     const stompClientRef = useRef(null);
-    const subscribersRef = useRef(new Map()); // ✅ Используем useRef вместо useState
     const [connectionState, setConnectionState] = useState('disconnected');
+    const [subscribers, setSubscribers] = useState(new Map());
     const [metrics, setMetrics] = useState({
         activeRobots: 0,
         totalRobots: 0,
@@ -25,20 +25,8 @@ export const WebSocketProvider = ({ children }) => {
         lastUpdate: null
     });
 
-    // Функция трансформации данных - вынесена для стабильности
-    const transformPredictionData = useCallback((predictionData) => {
-        return {
-            activeRobots: Math.floor(Math.random() * 10) + 5,
-            totalRobots: 15,
-            scannedToday: predictionData.recommended_order || 0,
-            criticalStock: predictionData.days_until_stockout < 7 ? 1 : 0,
-            averageBattery: Math.floor(Math.random() * 30) + 70,
-            lastUpdate: new Date()
-        };
-    }, []);
-
     // Функция подключения к WebSocket
-    const connect = useCallback(async () => {
+    const connect = useRef(async () => {
         if (stompClientRef.current?.connected) {
             return stompClientRef.current;
         }
@@ -70,30 +58,21 @@ export const WebSocketProvider = ({ children }) => {
                     client.subscribe('/topic/actual-info', (message) => {
                         try {
                             const data = JSON.parse(message.body);
-                            console.log('📊 Received prediction data:', data);
-
-                            // Трансформируем данные прогноза в метрики
                             const transformedMetrics = transformPredictionData(data);
-                            
-                            // ✅ Обновляем метрики
                             setMetrics(transformedMetrics);
 
-                            // ✅ Уведомляем всех подписчиков через ref (не вызывает ререндер)
-                            subscribersRef.current.forEach((callback) => {
-                                try {
-                                    callback(transformedMetrics);
-                                } catch (error) {
-                                    console.error('Error in subscriber callback:', error);
-                                }
+                            // Уведомляем всех подписчиков
+                            subscribers.forEach((callback) => {
+                                callback(transformedMetrics);
                             });
 
                         } catch (error) {
-                            console.error('❌ Error parsing prediction data:', error);
+                            console.error('❌ Error parsing actual-info data:', error);
                         }
                     });
 
                     // Запрос начальных данных
-                    client.send('/topic/actual-info', {}, JSON.stringify({}));
+                    client.send('/app/subscribe-actual-info', {}, JSON.stringify({}));
                     resolve(client);
 
                 }, (error) => {
@@ -108,46 +87,47 @@ export const WebSocketProvider = ({ children }) => {
             setConnectionState('error');
             throw error;
         }
-    }, [transformPredictionData]); // ✅ Добавляем зависимость
+    });
 
     // Функция для подписки на обновления метрик
-    const subscribeToMetrics = useCallback((callback) => {
+    const subscribeToMetrics = (callback) => {
         const id = Math.random().toString(36);
-        
-        // ✅ Используем ref для подписчиков (не вызывает ререндер)
-        subscribersRef.current.set(id, callback);
-        
+        setSubscribers(prev => new Map(prev).set(id, callback));
+
         // Возвращаем функцию отписки
         return () => {
-            subscribersRef.current.delete(id);
+            setSubscribers(prev => {
+                const newSubs = new Map(prev);
+                newSubs.delete(id);
+                return newSubs;
+            });
         };
-    }, []); // ✅ Нет зависимостей
+    };
 
     // Функция отправки сообщений
-    const sendMessage = useCallback((destination, body) => {
+    const sendMessage = (destination, body) => {
         if (stompClientRef.current?.connected) {
             stompClientRef.current.send(destination, {}, JSON.stringify(body));
         }
-    }, []);
+    };
 
     // Функция отключения
-    const disconnect = useCallback(() => {
+    const disconnect = () => {
         if (stompClientRef.current?.connected) {
             stompClientRef.current.disconnect();
         }
         stompClientRef.current = null;
         setConnectionState('disconnected');
-        subscribersRef.current.clear(); // ✅ Очищаем подписчиков при отключении
-    }, []);
+    };
 
     // Подключаемся при монтировании провайдера
     useEffect(() => {
-        connect();
-        
+        connect.current();
+
         return () => {
             disconnect();
         };
-    }, [connect, disconnect]); // ✅ Стабильные зависимости
+    }, []);
 
     const value = {
         connectionState,
@@ -155,10 +135,10 @@ export const WebSocketProvider = ({ children }) => {
         subscribeToMetrics,
         sendMessage,
         disconnect,
-        reconnect: useCallback(() => {
+        reconnect: () => {
             disconnect();
-            setTimeout(() => connect(), 1000);
-        }, [connect, disconnect])
+            setTimeout(() => connect.current(), 1000);
+        }
     };
 
     return (
@@ -167,3 +147,45 @@ export const WebSocketProvider = ({ children }) => {
         </WebSocketContext.Provider>
     );
 };
+
+// Функция трансформации данных прогноза в метрики дашборда
+const transformPredictionData = (predictionData) => {
+    // Если данные приходят как массив ActualEntity
+    if (Array.isArray(predictionData)) {
+        if (predictionData.length === 0) {
+            return getDefaultMetrics();
+        }
+        
+        // Берем первую запись из массива
+        const data = predictionData[0];
+        
+        return {
+            activeRobots: data.active_robots || 0,
+            totalRobots: data.total_robots || 0,
+            scannedToday: data.total_checked_locations || 0,
+            criticalStock: data.critical_items_count || 0,
+            averageBattery: data.avg_battery_level || 0,
+            lastUpdate: new Date().toISOString()
+        };
+    }
+    
+    // Если данные приходят как одиночный объект
+    return {
+        activeRobots: predictionData.active_robots || 0,
+        totalRobots: predictionData.total_robots || 0,
+        scannedToday: predictionData.total_checked_locations || 0,
+        criticalStock: predictionData.critical_items_count || 0,
+        averageBattery: predictionData.avg_battery_level || 0,
+        lastUpdate: new Date().toISOString()
+    };
+};
+
+// Функция для возврата метрик по умолчанию
+const getDefaultMetrics = () => ({
+    activeRobots: 0,
+    totalRobots: 0,
+    scannedToday: 0,
+    criticalStock: 0,
+    averageBattery: 0,
+    lastUpdate: null
+});

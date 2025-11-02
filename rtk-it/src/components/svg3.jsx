@@ -442,7 +442,7 @@ const Svg = () => {
 
                                     {/* Всплывающая подсказка */}
                                     <title>
-                                        {`ID: ${robot.id} | Батарея: ${robot.battery}% | Статус: ${robot.status} | Зона: ${robot.currentZone || 'Неизвестно'} | Ряд: ${(robot.currentRow ?? 0) + 1} | Полка: ${(robot.currentShelf ?? 0) + 1} | Обновление: ${new Date(robot.lastUpdate).toLocaleTimeString()}`}
+                                        {`ID: ${robot.id} | Батарея: ${robot.battery}% | Статус: ${robot.status} | Зона: ${robot.currentZone || 'Неизвестно'} | Ряд: ${(robot.currentRow ?? 0)} | Полка: ${(robot.currentShelf ?? 0)} | Обновление: ${new Date(robot.lastUpdate).toLocaleTimeString()}`}
                                     </title>
                                 </g>
                             ))}

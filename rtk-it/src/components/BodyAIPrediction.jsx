@@ -70,7 +70,6 @@ const BodyAIPredict = () => {
         setError(null);
 
         try {
-            // Замените URL на ваш реальный эндпоинт API
             const response = await instance.get('/api/ai-predictions', {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -114,12 +113,7 @@ const BodyAIPredict = () => {
         fetchPredictions();
     }, []);
 
-    // Функция для определения цвета индикатора достоверности
-    const getConfidenceColor = (confidence) => {
-        if (confidence >= 80) return '#4caf50'; // Высокая достоверность - зеленый
-        if (confidence >= 60) return '#ff9800'; // Средняя достоверность - оранжевый
-        return '#f44336'; // Низкая достоверность - красный
-    };
+    
 
     // Функция для форматирования даты
     const formatDate = (dateString) => {

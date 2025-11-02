@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback} from "react";
 import { useLocation, useNavigate } from "react-router";
 import Svg from "./svg2";
-import { AppBar, Box, Button, Typography } from "@mui/material";
+import { AppBar, Box, Button, Typography, } from "@mui/material";
 import CSVUploadModal from "./CSVModal";
 import { useDispatch, useSelector } from "react-redux";
 import { loadRobotsData } from "../store/slices/robots";
@@ -9,11 +9,37 @@ import BodyScantable from "./BodyScantable";
 import BodyScant from "./bodyScant";
 import WarehouseMap from "./newSvg";
 import { instance } from "../axios/axios";
-import { 
-  Snackbar, 
+import {
+  TrendingUp,
+  Warning,
+  Inventory,
+  CalendarToday,
+  ShoppingCart
+} from '@mui/icons-material';
+import {
+  Snackbar,
   Alert,
-  CircularProgress 
+  CircularProgress
 } from '@mui/material';
+import { 
+  Card, 
+  CardContent, 
+  Grid,
+  LinearProgress,
+  useTheme,
+  Chip
+} from '@mui/material';
+import { 
+  BatteryChargingFull,
+  Refresh,
+  Wifi,
+  WifiOff
+} from '@mui/icons-material';
+ 
+import {SmartToy as RobotIcon} from "@mui/icons-material";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area } from 'recharts';
+import SockJS from 'sockjs-client';
+import Stomp from 'stompjs';
 
 function Input(props) {
   return (
@@ -102,10 +128,10 @@ function LinkA(props) {
 function Header() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({ 
-    open: false, 
-    message: '', 
-    severity: 'success' 
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
   });
   const navigate = useNavigate();
 
@@ -125,7 +151,7 @@ function Header() {
   const handleClickDownloadCSV = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -161,30 +187,30 @@ function Header() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Получаем имя файла из заголовков или используем по умолчанию
       const contentDisposition = response.headers['content-disposition'];
       let filename = 'warehouse_report.csv';
-      
+
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
         if (filenameMatch && filenameMatch[1]) {
           filename = filenameMatch[1];
         }
       }
-      
+
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       setSnackbar({
         open: true,
         message: `Файл ${filename} успешно скачан`,
         severity: 'success'
       });
-      
+
     } catch (error) {
       console.error('Ошибка при скачивании CSV:', error);
       setSnackbar({
@@ -218,46 +244,46 @@ function Header() {
 
       <div className='header__navigation-menu'>
         <div className="header__navigation_item">
-          <Button 
-            id="current_mon_btn" 
-            className="header__navigation-menu_btn" 
-            variant="text" 
-            color="inherit" 
-            sx={{ width: '300px' }} 
+          <Button
+            id="current_mon_btn"
+            className="header__navigation-menu_btn"
+            variant="text"
+            color="inherit"
+            sx={{ width: '300px' }}
             onClick={(event) => handleClick(event.target.id)}
           >
             Текущий мониторинг
           </Button>
         </div>
         <div className="header__navigation_item">
-          <Button 
-            id="history_mon_btn" 
-            className="header__navigation-menu_btn" 
-            variant="text" 
-            color="inherit" 
-            sx={{ width: '300px' }} 
+          <Button
+            id="history_mon_btn"
+            className="header__navigation-menu_btn"
+            variant="text"
+            color="inherit"
+            sx={{ width: '300px' }}
             onClick={(event) => handleClick(event.target.id)}
           >
             Исторические данные
           </Button>
         </div>
         <div className="header__navigation_item">
-          <Button 
-            className="header__navigation-menu_btn" 
-            variant="text" 
-            color="inherit" 
-            sx={{ width: '300px' }} 
+          <Button
+            className="header__navigation-menu_btn"
+            variant="text"
+            color="inherit"
+            sx={{ width: '300px' }}
             onClick={() => { setIsModalOpen(true) }}
           >
             Загрузить CSV
           </Button>
         </div>
         <div className="header__navigation_item">
-          <Button 
-            className="header__navigation-menu_btn" 
-            variant="text" 
-            color="inherit" 
-            sx={{ width: '300px' }} 
+          <Button
+            className="header__navigation-menu_btn"
+            variant="text"
+            color="inherit"
+            sx={{ width: '300px' }}
             onClick={handleClickDownloadCSV}
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}
@@ -265,7 +291,7 @@ function Header() {
             {loading ? 'Скачивание...' : 'Скачать CSV'}
           </Button>
         </div>
-        
+
         <CSVUploadModal open={isModalOpen} onClose={() => setIsModalOpen(false)} />
       </div>
 
@@ -275,8 +301,8 @@ function Header() {
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
+        <Alert
+          onClose={handleCloseSnackbar}
           severity={snackbar.severity}
           variant="filled"
         >
@@ -308,38 +334,478 @@ function Body() {
   )
 }
 
-function BodyInfo() {
+const BodyInfo = () => {
+  const theme = useTheme();
+  
+  const [metrics, setMetrics] = useState({
+    activeRobots: 0,
+    totalRobots: 0,
+    scannedToday: 0,
+    criticalStock: 0,
+    averageBattery: 0,
+    lastUpdate: null
+  });
+  
+  const [activityData, setActivityData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [connectionState, setConnectionState] = useState('disconnected');
+  const [stompClient, setStompClient] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Подключение к WebSocket
+  const connectWebSocket = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Токен авторизации не найден');
+      }
+
+      setConnectionState('connecting');
+      
+      const socket = new SockJS('http://localhost:8080/ws');
+      const client = Stomp.over(socket);
+
+      // Отключаем логи в продакшене
+      client.debug = process.env.NODE_ENV === 'development' 
+        ? console.log 
+        : () => {};
+
+      const headers = {
+        Authorization: `Bearer ${token}`
+      };
+
+      client.connect(headers, (frame) => {
+        console.log('WebSocket connected successfully');
+        setConnectionState('connected');
+        setStompClient(client);
+        setLoading(false);
+
+        // Подписка на топик с метриками
+        client.subscribe('/topic/dashboard/metrics', (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('Received metrics data:', data);
+            
+            setMetrics(prev => ({
+              ...prev,
+              activeRobots: data.activeRobots || data.active_robots || 0,
+              totalRobots: data.totalRobots || data.total_robots || 0,
+              scannedToday: data.scannedToday || data.scanned_today || data.todayScans || 0,
+              criticalStock: data.criticalStock || data.critical_stock || data.criticalItems || 0,
+              averageBattery: data.averageBattery || data.avg_battery || data.batteryLevel || 0,
+              lastUpdate: new Date()
+            }));
+            
+            setError(null);
+          } catch (error) {
+            console.error('Error parsing metrics data:', error);
+            setError('Ошибка обработки данных с сервера');
+          }
+        });
+
+        // Подписка на топик с активностью для графика
+        client.subscribe('/topic/dashboard/activity', (message) => {
+          try {
+            const data = JSON.parse(message.body);
+            console.log('Received activity data:', data);
+            
+            if (Array.isArray(data)) {
+              setActivityData(data);
+            } else if (data.timeline && Array.isArray(data.timeline)) {
+              setActivityData(data.timeline);
+            } else if (data.data && Array.isArray(data.data)) {
+              setActivityData(data.data);
+            }
+          } catch (error) {
+            console.error('Error parsing activity data:', error);
+          }
+        });
+
+        // Запрос начальных данных
+        client.send('/app/request-metrics', {}, JSON.stringify({}));
+        client.send('/app/request-activity', {}, JSON.stringify({ period: '1h' }));
+
+      }, (error) => {
+        console.error('WebSocket connection failed:', error);
+        setConnectionState('error');
+        setError('Ошибка подключения к серверу');
+        setLoading(false);
+      });
+
+    } catch (error) {
+      console.error('WebSocket setup error:', error);
+      setConnectionState('error');
+      setError(error.message);
+      setLoading(false);
+    }
+  }, []);
+
+  // Отключение WebSocket
+  const disconnectWebSocket = useCallback(() => {
+    if (stompClient && stompClient.connected) {
+      stompClient.disconnect();
+    }
+    setStompClient(null);
+    setConnectionState('disconnected');
+  }, [stompClient]);
+
+  // Подключение при монтировании компонента
+  useEffect(() => {
+    connectWebSocket();
+
+    return () => {
+      disconnectWebSocket();
+    };
+  }, [connectWebSocket, disconnectWebSocket]);
+
+  // Интервал для периодического запроса данных
+  useEffect(() => {
+    if (connectionState === 'connected' && stompClient) {
+      const interval = setInterval(() => {
+        stompClient.send('/app/request-metrics', {}, JSON.stringify({}));
+      }, 5000); // Запрос каждые 5 секунд
+
+      return () => clearInterval(interval);
+    }
+  }, [connectionState, stompClient]);
+
+  // Компонент карточки метрики
+  const MetricCard = ({ 
+    icon, 
+    value, 
+    label, 
+    subtitle, 
+    color = 'primary',
+    progress 
+  }) => (
+    <Card 
+      sx={{ 
+        height: '100%',
+        background: `linear-gradient(135deg, ${theme.palette[color].light}15, ${theme.palette[color].main}08)`,
+        border: `1px solid ${theme.palette[color].light}30`,
+        position: 'relative',
+        overflow: 'visible',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+          boxShadow: theme.shadows[2]
+        }
+      }}
+    >
+      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: progress ? 0.5 : 0 }}>
+          <Box
+            sx={{
+              p: 1,
+              borderRadius: 1.5,
+              backgroundColor: `${theme.palette[color].main}15`,
+              color: theme.palette[color].main,
+              mr: 1.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {icon}
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography 
+              variant="h6" 
+              component="div" 
+              fontWeight="bold" 
+              color={theme.palette[color].main}
+              sx={{ fontSize: '1.25rem' }}
+            >
+              {value}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" fontWeight="medium" sx={{ fontSize: '0.8rem' }}>
+              {label}
+            </Typography>
+            {subtitle && (
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, fontSize: '0.7rem' }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+        
+        {progress && (
+          <LinearProgress 
+            variant="determinate" 
+            value={progress} 
+            sx={{ 
+              mt: 0.5,
+              height: 3,
+              borderRadius: 1.5,
+              backgroundColor: `${theme.palette[color].main}20`,
+              '& .MuiLinearProgress-bar': {
+                backgroundColor: theme.palette[color].main
+              }
+            }}
+          />
+        )}
+        
+        {/* Индикатор реального времени */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+          <Chip
+            icon={connectionState === 'connected' ? <Wifi /> : <WifiOff />}
+            label={connectionState === 'connected' ? 'Live' : 'Offline'}
+            size="small"
+            color={connectionState === 'connected' ? 'success' : 'error'}
+            variant="outlined"
+            sx={{ height: 20, fontSize: '0.6rem', '& .MuiChip-icon': { fontSize: '0.8rem' } }}
+          />
+        </Box>
+      </CardContent>
+    </Card>
+  );
+
+  // Компонент графика активности
+  const ActivityChart = () => (
+    <Card 
+      sx={{ 
+        mt: 2,
+        background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+        border: `1px solid ${theme.palette.divider}`
+      }}
+    >
+      <CardContent sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <TrendingUp sx={{ mr: 1, color: 'primary.main', fontSize: 22 }} />
+            <Box>
+              <Typography variant="h6" component="h3" fontWeight="bold" sx={{ fontSize: '1rem' }}>
+                Активность роботов
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                Данные за последний час • Обновление в реальном времени
+              </Typography>
+            </Box>
+          </Box>
+          <Chip 
+            icon={<Refresh sx={{ fontSize: '0.9rem' }} />}
+            label="Real-time" 
+            size="small" 
+            color={connectionState === 'connected' ? 'success' : 'error'}
+            variant="outlined"
+            sx={{ fontSize: '0.7rem', height: 24 }}
+          />
+        </Box>
+        
+        {activityData.length > 0 ? (
+          <Box sx={{ height: 180 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={activityData}>
+                <CartesianGrid strokeDasharray="2 2" stroke={theme.palette.divider} />
+                <XAxis 
+                  dataKey="time" 
+                  stroke={theme.palette.text.secondary}
+                  fontSize={10}
+                  tickMargin={6}
+                />
+                <YAxis 
+                  stroke={theme.palette.text.secondary}
+                  fontSize={10}
+                  tickMargin={6}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: theme.shape.borderRadius,
+                    boxShadow: theme.shadows[2],
+                    fontSize: '0.8rem'
+                  }}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="scans" 
+                  stroke={theme.palette.secondary.main}
+                  fill={theme.palette.secondary.main + '20'}
+                  strokeWidth={1.5}
+                  name="Сканирования"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="activeRobots" 
+                  stroke={theme.palette.primary.main} 
+                  strokeWidth={2}
+                  dot={{ fill: theme.palette.primary.main, strokeWidth: 1.5, r: 3 }}
+                  activeDot={{ r: 4, strokeWidth: 1.5 }}
+                  name="Активных роботов"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Box>
+        ) : (
+          <Box sx={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Typography color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+              {connectionState === 'connected' ? 'Ожидание данных...' : 'Нет подключения'}
+            </Typography>
+          </Box>
+        )}
+        
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
+          <Typography variant="caption" color="primary.main" sx={{ fontSize: '0.65rem' }}>
+            ● Активные роботы
+          </Typography>
+          <Typography variant="caption" color="secondary.main" sx={{ fontSize: '0.65rem' }}>
+            ● Сканирования (область)
+          </Typography>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+
+  // Функция для переподключения
+  const handleReconnect = () => {
+    disconnectWebSocket();
+    setTimeout(() => {
+      connectWebSocket();
+    }, 1000);
+  };
+
+  if (loading) {
+    return (
+      <Box 
+        className="real-time-stats" 
+        sx={{ 
+          width: '745px',
+          maxWidth: '100%'
+        }}
+      >
+        <Card>
+          <CardContent sx={{ p: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200 }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <LinearProgress sx={{ width: 150, mb: 1.5, height: 4 }} />
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                  Подключение к серверу...
+                </Typography>
+                <Chip 
+                  icon={<WifiOff sx={{ fontSize: '0.8rem' }} />}
+                  label={connectionState} 
+                  size="small" 
+                  color="warning"
+                  sx={{ mt: 0.5, fontSize: '0.7rem', height: 22 }}
+                />
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
+    );
+  }
+
   return (
-    <div className="body_info">
-      <div className="stats-container">
-        <h3>Статистика в реальном времени</h3>
-        <div className="metrics-grid">
-          <div className="metric-card">
-            <div className="metric-value">14 </div>
-            <div className="metric-label">Активных роботов</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-value">14 </div>
-            <div className="metric-label">Проверено сегодня</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-value">14 </div>
-            <div className="metric-label">Критических остатков</div>
-          </div>
-          <div className="metric-card">
-            <div className="metric-value">14 </div>
-            <div className="metric-label">Средний заряд</div>
-          </div>
-        </div>
-        <div className="activity-chart">
-          <div className="chart-placeholder">
-            График активности роботов (последний час)
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
+    <Box 
+      className="real-time-stats" 
+      sx={{ 
+        width: '745px',
+        maxWidth: '100%'
+      }}
+    >
+      {/* Заголовок и статус */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h5" component="h2" fontWeight="bold" sx={{ fontSize: '1.25rem' }}>
+          📊 Статистика в реальном времени
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Chip 
+            icon={connectionState === 'connected' ? <Wifi sx={{ fontSize: '0.8rem' }} /> : <WifiOff sx={{ fontSize: '0.8rem' }} />}
+            label={`WS: ${connectionState}`}
+            color={connectionState === 'connected' ? 'success' : 'error'}
+            size="small"
+            variant="outlined"
+            sx={{ fontSize: '0.7rem', height: 24 }}
+          />
+          {metrics.lastUpdate && (
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+              {metrics.lastUpdate.toLocaleTimeString('ru-RU')}
+            </Typography>
+          )}
+        </Box>
+      </Box>
+
+      {error && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 2, fontSize: '0.8rem', py: 0.5 }}
+          action={
+            <Button color="inherit" size="small" onClick={handleReconnect} sx={{ fontSize: '0.7rem', minWidth: 'auto' }}>
+              Переподключить
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      )}
+
+      {/* Карточки с метриками */}
+      <Grid container spacing={1.5}>
+        <Grid item xs={12} sm={6} md={3}>
+          <MetricCard
+            icon={<RobotIcon sx={{ fontSize: '1.2rem' }} />}
+            value={`${metrics.activeRobots}/${metrics.totalRobots}`}
+            label="Активных роботов"
+            subtitle="в работе"
+            color="primary"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <MetricCard
+            icon={<Inventory sx={{ fontSize: '1.2rem' }} />}
+            value={metrics.scannedToday.toLocaleString()}
+            label="Проверено сегодня"
+            subtitle="позиций"
+            color="success"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <MetricCard
+            icon={<Warning sx={{ fontSize: '1.2rem' }} />}
+            value={metrics.criticalStock}
+            label="Критических остатков"
+            subtitle="SKU"
+            color="error"
+          />
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <MetricCard
+            icon={<BatteryChargingFull sx={{ fontSize: '1.2rem' }} />}
+            value={`${metrics.averageBattery}%`}
+            label="Средний заряд"
+            subtitle="батарей"
+            color="warning"
+            progress={metrics.averageBattery}
+          />
+        </Grid>
+      </Grid>
+
+      {/* График активности */}
+      <ActivityChart />
+
+      {/* Информация о подключении */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+          {connectionState === 'connected' 
+            ? 'Данные обновляются в реальном времени через WebSocket' 
+            : 'Отсутствует подключение к серверу'}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+          {connectionState === 'connected' ? '🟢' : '🔴'}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
+
 
 // function BodyScantable() {
 //   const [robots, setRobots] = useState({});
@@ -458,197 +924,240 @@ function BodyInfo() {
 // }
 
 
-function BodyAIPredict() {
+// function BodyAIPredict() {
+//   return (
+//     <div className="ai-container body_info">
+//       <div className="ai-header">
+//         <h3>Прогноз ИИ на следующие 7 дней</h3>
+//         <Button variant="outlined">Обновить прогноз</Button>
+//       </div>
+//       <div className="predictions-list">
+//         <div className="prediction-item">
+//           <div className="prediction-main">
+//             <div className="product-name">prediction name</div>
+//             <div className="confidence">prediction confidience% достоверность</div>
+//           </div>
+//           <div className="prediction-details">
+//             <div>Текущий остаток: </div>
+//             <div>Прогноз исчерпания: </div>
+//             <div>Рекомендуемый заказ: </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   )
+// }
+
+const BodyAIPredict = () => {
+  const [predictions, setPredictions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Моковые данные для демонстрации
+  const mockPredictions = [
+    {
+      id: 1,
+      name: "Смартфон Samsung Galaxy S23",
+      currentStock: 12,
+      depletionDate: "2024-01-15",
+      recommendedOrder: 50,
+      confidence: 87
+    },
+    {
+      id: 2,
+      name: "Ноутбук Lenovo ThinkPad X1",
+      currentStock: 8,
+      depletionDate: "2024-01-12",
+      recommendedOrder: 25,
+      confidence: 92
+    },
+    {
+      id: 3,
+      name: "Наушники Sony WH-1000XM5",
+      currentStock: 5,
+      depletionDate: "2024-01-10",
+      recommendedOrder: 30,
+      confidence: 78
+    },
+    {
+      id: 4,
+      name: "Планшет iPad Air 5",
+      currentStock: 3,
+      depletionDate: "2024-01-08",
+      recommendedOrder: 20,
+      confidence: 85
+    },
+    {
+      id: 5,
+      name: "Умные часы Apple Watch Series 9",
+      currentStock: 7,
+      depletionDate: "2024-01-14",
+      recommendedOrder: 35,
+      confidence: 81
+    }
+  ];
+
+  // Функция для получения прогнозов от API
+  const fetchPredictions = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Замените URL на ваш реальный эндпоинт API
+      const response = await instance.get('/api/ai-prediction', {
+        params: {
+          period: 7 // Прогноз на 7 дней
+        },
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      setPredictions(response.data.predictions);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Ошибка при получении прогнозов:', err);
+      setError('Не удалось загрузить прогнозы. Используются демо-данные.');
+      // Используем моковые данные в случае ошибки
+      setPredictions(mockPredictions);
+      setLastUpdated(new Date());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Функция для обновления конкретного прогноза
+  const updateSinglePrediction = async (productId) => {
+    try {
+      const response = await instance.post(
+        `/ai/update-prediction/${productId}`
+      );
+
+      // Обновляем конкретный прогноз в списке
+      setPredictions(prev =>
+        prev.map(pred =>
+          pred.id === productId ? response.data.prediction : pred
+        )
+      );
+    } catch (err) {
+      console.error('Ошибка при обновлении прогноза:', err);
+      setError('Ошибка при обновлении прогноза');
+    }
+  };
+
+  // Загружаем прогнозы при монтировании компонента
+  useEffect(() => {
+    fetchPredictions();
+  }, []);
+
+  // Функция для определения цвета индикатора достоверности
+  const getConfidenceColor = (confidence) => {
+    if (confidence >= 80) return '#4caf50'; // Высокая достоверность - зеленый
+    if (confidence >= 60) return '#ff9800'; // Средняя достоверность - оранжевый
+    return '#f44336'; // Низкая достоверность - красный
+  };
+
+  // Функция для форматирования даты
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
   return (
     <div className="ai-container body_info">
       <div className="ai-header">
-        <h3>Прогноз ИИ на следующие 7 дней</h3>
-        <Button variant="outlined">Обновить прогноз</Button>
-      </div>
-      <div className="predictions-list">
-        <div className="prediction-item">
-          <div className="prediction-main">
-            <div className="product-name">prediction name</div>
-            <div className="confidence">prediction confidience% достоверность</div>
-          </div>
-          <div className="prediction-details">
-            <div>Текущий остаток: </div>
-            <div>Прогноз исчерпания: </div>
-            <div>Рекомендуемый заказ: </div>
-          </div>
+        <div className="ai-title-section">
+          <TrendingUp className="ai-icon" />
+          <h3>Прогноз ИИ на следующие 7 дней</h3>
+        </div>
+        <div className="ai-controls">
+          {lastUpdated && (
+            <div className="last-updated">
+              Обновлено: {lastUpdated.toLocaleTimeString('ru-RU')}
+            </div>
+          )}
+          <Button
+            variant="outlined"
+            onClick={fetchPredictions}
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={16} /> : <TrendingUp />}
+          >
+            {loading ? 'Обновление...' : 'Обновить прогноз'}
+          </Button>
         </div>
       </div>
+
+      {error && (
+        <Alert severity="warning" className="ai-alert">
+          {error}
+        </Alert>
+      )}
+
+      <div className="predictions-list">
+        {predictions.map((prediction) => (
+          <div key={prediction.id} className="prediction-item">
+            <div className="prediction-main">
+              <div className="product-info">
+                <Warning className="warning-icon" />
+                <div className="product-name">{prediction.name}</div>
+              </div>
+              <div className="confidence-section">
+                <div
+                  className="confidence-indicator"
+                  style={{ backgroundColor: getConfidenceColor(prediction.confidence) }}
+                >
+                  {prediction.confidence}%
+                </div>
+                <div className="confidence-label">достоверность</div>
+              </div>
+            </div>
+
+            <div className="prediction-details">
+              <div className="detail-item">
+                <Inventory className="detail-icon" />
+                <span>Текущий остаток: </span>
+                <strong>{prediction.currentStock} шт.</strong>
+              </div>
+              <div className="detail-item">
+                <CalendarToday className="detail-icon" />
+                <span>Прогноз исчерпания: </span>
+                <strong>{formatDate(prediction.depletionDate)}</strong>
+              </div>
+              <div className="detail-item">
+                <ShoppingCart className="detail-icon" />
+                <span>Рекомендуемый заказ: </span>
+                <strong className="recommended-order">
+                  {prediction.recommendedOrder} шт.
+                </strong>
+              </div>
+            </div>
+
+            <div className="prediction-actions">
+              <Button
+                size="small"
+                variant="text"
+              // onClick={() => updateSinglePrediction(prediction.id)}
+              >
+                Обновить прогноз
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {predictions.length === 0 && !loading && (
+        <div className="no-predictions">
+          Нет данных для прогноза
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
 
 
 export { Input, Button, LinkA, Header, Svg, Body };
 
-{/* <svg width="811" height="1521" xmlns="http://www.w3.org/2000/svg">
-      <style className="label"> </style>
-      
-      <text x="40" y="15" class="label">A</text>
-      <text x="70" y="15" class="label">B</text>
-      <text x="100" y="15" class="label">C</text>
-      <text x="130" y="15" class="label">D</text>
-      <text x="160" y="15" class="label">E</text>
-      <text x="190" y="15" class="label">F</text>
-      <text x="220" y="15" class="label">G</text>
-      <text x="250" y="15" class="label">H</text>
-      <text x="280" y="15" class="label">I</text>
-      <text x="310" y="15" class="label">J</text>
-      <text x="340" y="15" class="label">K</text>
-      <text x="370" y="15" class="label">L</text>
-      <text x="400" y="15" class="label">M</text>
-      <text x="430" y="15" class="label">N</text>
-      <text x="460" y="15" class="label">O</text>
-      <text x="490" y="15" class="label">P</text>
-      <text x="520" y="15" class="label">Q</text>
-      <text x="550" y="15" class="label">R</text>
-      <text x="580" y="15" class="label">S</text>
-      <text x="610" y="15" class="label">T</text>
-      <text x="640" y="15" class="label">U</text>
-      <text x="670" y="15" class="label">V</text>
-      <text x="700" y="15" class="label">W</text>
-      <text x="730" y="15" class="label">X</text>
-      <text x="760" y="15" class="label">Y</text>
-      <text x="790" y="15" class="label">Z</text>
-
-      <text x="5" y="45" class="label">1</text>
-      <text x="5" y="75" class="label">2</text>
-      <text x="5" y="105" class="label">3</text>
-      <text x="5" y="135" class="label">4</text>
-      <text x="5" y="165" class="label">5</text>
-      <text x="5" y="195" class="label">6</text>
-      <text x="5" y="225" class="label">7</text>
-      <text x="5" y="255" class="label">8</text>
-      <text x="5" y="285" class="label">9</text>
-      <text x="5" y="315" class="label">10</text>
-      <text x="5" y="345" class="label">11</text>
-      <text x="5" y="375" class="label">12</text>
-      <text x="5" y="405" class="label">13</text>
-      <text x="5" y="435" class="label">14</text>
-      <text x="5" y="465" class="label">15</text>
-      <text x="5" y="495" class="label">16</text>
-      <text x="5" y="525" class="label">17</text>
-      <text x="5" y="555" class="label">18</text>
-      <text x="5" y="585" class="label">19</text>
-      <text x="5" y="615" class="label">20</text>
-      <text x="5" y="645" class="label">21</text>
-      <text x="5" y="675" class="label">22</text>
-      <text x="5" y="705" class="label">23</text>
-      <text x="5" y="735" class="label">24</text>
-      <text x="5" y="765" class="label">25</text>
-      <text x="5" y="795" class="label">26</text>
-      <text x="5" y="825" class="label">27</text>
-      <text x="5" y="855" class="label">28</text>
-      <text x="5" y="885" class="label">29</text>
-      <text x="5" y="915" class="label">30</text>
-      <text x="5" y="945" class="label">31</text>
-      <text x="5" y="975" class="label">32</text>
-      <text x="5" y="1005" class="label">33</text>
-      <text x="5" y="1035" class="label">34</text>
-      <text x="5" y="1065" class="label">35</text>
-      <text x="5" y="1095" class="label">36</text>
-      <text x="5" y="1125" class="label">37</text>
-      <text x="5" y="1155" class="label">38</text>
-      <text x="5" y="1185" class="label">39</text>
-      <text x="5" y="1215" class="label">40</text>
-      <text x="5" y="1245" class="label">41</text>
-      <text x="5" y="1275" class="label">42</text>
-      <text x="5" y="1305" class="label">43</text>
-      <text x="5" y="1335" class="label">44</text>
-      <text x="5" y="1365" class="label">45</text>
-      <text x="5" y="1395" class="label">46</text>
-      <text x="5" y="1425" class="label">47</text>
-      <text x="5" y="1455" class="label">48</text>
-      <text x="5" y="1485" class="label">49</text>
-      <text x="5" y="1515" class="label">50</text>
-      
-      
-      <g stroke="black" stroke-width="1">
-        
-        <line x1="30" y1="20" x2="810" y2="20"/>
-        <line x1="30" y1="50" x2="810" y2="50"/>
-        <line x1="30" y1="80" x2="810" y2="80"/>
-        <line x1="30" y1="110" x2="810" y2="110"/>
-        <line x1="30" y1="140" x2="810" y2="140"/>
-        <line x1="30" y1="170" x2="810" y2="170"/>
-        <line x1="30" y1="200" x2="810" y2="200"/>
-        <line x1="30" y1="230" x2="810" y2="230"/>
-        <line x1="30" y1="260" x2="810" y2="260"/>
-        <line x1="30" y1="290" x2="810" y2="290"/>
-        <line x1="30" y1="320" x2="810" y2="320"/>
-        <line x1="30" y1="350" x2="810" y2="350"/>
-        <line x1="30" y1="380" x2="810" y2="380"/>
-        <line x1="30" y1="410" x2="810" y2="410"/>
-        <line x1="30" y1="440" x2="810" y2="440"/>
-        <line x1="30" y1="470" x2="810" y2="470"/>
-        <line x1="30" y1="500" x2="810" y2="500"/>
-        <line x1="30" y1="530" x2="810" y2="530"/>
-        <line x1="30" y1="560" x2="810" y2="560"/>
-        <line x1="30" y1="590" x2="810" y2="590"/>
-        <line x1="30" y1="620" x2="810" y2="620"/>
-        <line x1="30" y1="650" x2="810" y2="650"/>
-        <line x1="30" y1="680" x2="810" y2="680"/>
-        <line x1="30" y1="710" x2="810" y2="710"/>
-        <line x1="30" y1="740" x2="810" y2="740"/>
-        <line x1="30" y1="770" x2="810" y2="770"/>
-        <line x1="30" y1="800" x2="810" y2="800"/>
-        <line x1="30" y1="830" x2="810" y2="830"/>
-        <line x1="30" y1="860" x2="810" y2="860"/>
-        <line x1="30" y1="890" x2="810" y2="890"/>
-        <line x1="30" y1="920" x2="810" y2="920"/>
-        <line x1="30" y1="950" x2="810" y2="950"/>
-        <line x1="30" y1="980" x2="810" y2="980"/>
-        <line x1="30" y1="1010" x2="810" y2="1010"/>
-        <line x1="30" y1="1040" x2="810" y2="1040"/>
-        <line x1="30" y1="1070" x2="810" y2="1070"/>
-        <line x1="30" y1="1100" x2="810" y2="1100"/>
-        <line x1="30" y1="1130" x2="810" y2="1130"/>
-        <line x1="30" y1="1160" x2="810" y2="1160"/>
-        <line x1="30" y1="1190" x2="810" y2="1190"/>
-        <line x1="30" y1="1220" x2="810" y2="1220"/>
-        <line x1="30" y1="1250" x2="810" y2="1250"/>
-        <line x1="30" y1="1280" x2="810" y2="1280"/>
-        <line x1="30" y1="1310" x2="810" y2="1310"/>
-        <line x1="30" y1="1340" x2="810" y2="1340"/>
-        <line x1="30" y1="1370" x2="810" y2="1370"/>
-        <line x1="30" y1="1400" x2="810" y2="1400"/>
-        <line x1="30" y1="1430" x2="810" y2="1430"/>
-        <line x1="30" y1="1460" x2="810" y2="1460"/>
-        <line x1="30" y1="1490" x2="810" y2="1490"/>
-        <line x1="30" y1="1520" x2="810" y2="1520"/>
-        
-        
-        <line x1="0" y1="20" x2="0" y2="1520"/>
-        <line x1="30" y1="20" x2="30" y2="1520"/>
-        <line x1="60" y1="20" x2="60" y2="1520"/>
-        <line x1="90" y1="20" x2="90" y2="1520"/>
-        <line x1="120" y1="20" x2="120" y2="1520"/>
-        <line x1="150" y1="20" x2="150" y2="1520"/>
-        <line x1="180" y1="20" x2="180" y2="1520"/>
-        <line x1="210" y1="20" x2="210" y2="1520"/>
-        <line x1="240" y1="20" x2="240" y2="1520"/>
-        <line x1="270" y1="20" x2="270" y2="1520"/>
-        <line x1="300" y1="20" x2="300" y2="1520"/>
-        <line x1="330" y1="20" x2="330" y2="1520"/>
-        <line x1="360" y1="20" x2="360" y2="1520"/>
-        <line x1="390" y1="20" x2="390" y2="1520"/>
-        <line x1="420" y1="20" x2="420" y2="1520"/>
-        <line x1="450" y1="20" x2="450" y2="1520"/>
-        <line x1="480" y1="20" x2="480" y2="1520"/>
-        <line x1="510" y1="20" x2="510" y2="1520"/>
-        <line x1="540" y1="20" x2="540" y2="1520"/>
-        <line x1="570" y1="20" x2="570" y2="1520"/>
-        <line x1="600" y1="20" x2="600" y2="1520"/>
-        <line x1="630" y1="20" x2="630" y2="1520"/>
-        <line x1="660" y1="20" x2="660" y2="1520"/>
-        <line x1="690" y1="20" x2="690" y2="1520"/>
-        <line x1="720" y1="20" x2="720" y2="1520"/>
-        <line x1="750" y1="20" x2="750" y2="1520"/>
-        <line x1="780" y1="20" x2="780" y2="1520"/>
-        <line x1="810" y1="20" x2="810" y2="1520"/>
-      </g>
-    </svg>  */}

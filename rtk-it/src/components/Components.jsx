@@ -745,7 +745,7 @@ const BodyInfo = () => {
       )}
 
       {/* Карточки с метриками */}
-      <Grid container spacing={1.5}>
+      <Grid container spacing={0}>
         <Grid item xs={12} sm={6} md={3}>
           <MetricCard
             icon={<RobotIcon sx={{ fontSize: '1.2rem' }} />}
@@ -792,7 +792,7 @@ const BodyInfo = () => {
       <ActivityChart />
 
       {/* Информация о подключении */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
           {connectionState === 'connected' 
             ? 'Данные обновляются в реальном времени через WebSocket' 

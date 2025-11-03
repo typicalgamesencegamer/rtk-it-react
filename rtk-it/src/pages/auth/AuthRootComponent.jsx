@@ -27,6 +27,7 @@ const AuthRootComponent = (props) => {
                 token: userData.token
             }));
             localStorage.setItem('token', userData.token);
+            localStorage.setItem('isLogged', true);
             navigate('/dashboard');
 
         } catch (e) {

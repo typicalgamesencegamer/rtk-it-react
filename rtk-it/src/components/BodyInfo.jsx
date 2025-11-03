@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import { TrendingUp, Warning, Inventory } from '@mui/icons-material';
 import { Alert, Card, CardContent, Grid, LinearProgress, useTheme, Chip } from '@mui/material';
@@ -178,103 +178,122 @@ const BodyInfo = () => {
     );
 
     // Компонент графика активности
-    const ActivityChart = () => {
-        // Создаем тестовые данные для графика если нет реальных
-        const chartData = activityData.length > 0 ? activityData : [
-            { time: '10:00', scans: 120, activeRobots: 6 },
-            { time: '10:05', scans: 180, activeRobots: 7 },
-            { time: '10:10', scans: 220, activeRobots: 8 },
-            { time: '10:15', scans: 245, activeRobots: 8 },
-        ];
+    // const ActivityChart = () => {
+    //     const chartData = activityData.length > 0 ? activityData : [
+    //         { time: '10:00', scans: 120, activeRobots: 6 },
+    //         { time: '10:05', scans: 180, activeRobots: 7 },
+    //         { time: '10:10', scans: 220, activeRobots: 8 },
+    //         { time: '10:15', scans: 245, activeRobots: 8 },
+    //     ];
 
-        return (
-            <Card
-                sx={{
-                    mt: 2,
-                    background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
-                    border: `1px solid ${theme.palette.divider}`
-                }}
-            >
-                <CardContent sx={{ p: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <TrendingUp sx={{ mr: 1, color: 'primary.main', fontSize: 22 }} />
-                            <Box>
-                                <Typography variant="h6" component="h3" fontWeight="bold" sx={{ fontSize: '1rem' }}>
-                                    Активность роботов
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                    Данные в реальном времени • Обновление каждые 5 сек
-                                </Typography>
-                            </Box>
-                        </Box>
-                        <Chip
-                            icon={<Refresh sx={{ fontSize: '0.9rem' }} />}
-                            label="Real-time"
-                            size="small"
-                            color={connectionState === 'connected' ? 'success' : 'error'}
-                            variant="outlined"
-                            sx={{ fontSize: '0.7rem', height: 24 }}
-                        />
-                    </Box>
+    //     return (
+    //         <Card
+    //             sx={{
+    //                 mt: 2,
+    //                 background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${theme.palette.background.default} 100%)`,
+    //                 border: `1px solid ${theme.palette.divider}`,
+    //             }}
+    //         >
+    //             <CardContent sx={{ p: 2 }}>
+    //                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+    //                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    //                         <TrendingUp sx={{ mr: 1, color: 'primary.main', fontSize: 22 }} />
+    //                         <Box>
+    //                             <Typography variant="h6" component="h3" fontWeight="bold" sx={{ fontSize: '1rem' }}>
+    //                                 Активность роботов
+    //                             </Typography>
+    //                             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+    //                                 Данные в реальном времени • Обновление каждые 5 сек
+    //                             </Typography>
+    //                         </Box>
+    //                     </Box>
+    //                     <Chip
+    //                         icon={<Refresh sx={{ fontSize: '0.9rem' }} />}
+    //                         label="Real-time"
+    //                         size="small"
+    //                         color={connectionState === 'connected' ? 'success' : 'error'}
+    //                         variant="outlined"
+    //                         sx={{ fontSize: '0.7rem', height: 24 }}
+    //                     />
+    //                 </Box>
 
-                    <Box sx={{ height: 180 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={chartData}>
-                                <CartesianGrid strokeDasharray="2 2" stroke={theme.palette.divider} />
-                                <XAxis
-                                    dataKey="time"
-                                    stroke={theme.palette.text.secondary}
-                                    fontSize={10}
-                                    tickMargin={6}
-                                />
-                                <YAxis
-                                    stroke={theme.palette.text.secondary}
-                                    fontSize={10}
-                                    tickMargin={6}
-                                />
-                                <Tooltip
-                                    contentStyle={{
-                                        backgroundColor: theme.palette.background.paper,
-                                        border: `1px solid ${theme.palette.divider}`,
-                                        borderRadius: theme.shape.borderRadius,
-                                        boxShadow: theme.shadows[2],
-                                        fontSize: '0.8rem'
-                                    }}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="scans"
-                                    stroke={theme.palette.secondary.main}
-                                    fill={theme.palette.secondary.main + '20'}
-                                    strokeWidth={1.5}
-                                    name="Сканирования"
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="activeRobots"
-                                    stroke={theme.palette.primary.main}
-                                    strokeWidth={2}
-                                    dot={{ fill: theme.palette.primary.main, strokeWidth: 1.5, r: 3 }}
-                                    activeDot={{ r: 4, strokeWidth: 1.5 }}
-                                    name="Активных роботов"
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </Box>
+    //                 {/* Контейнер для графика с абсолютными размерами */}
+    //                 <Box
+    //                     sx={{
+    //                         height: 180,
+    //                         width: '100%',
+    //                         minHeight: 150,
+    //                         minWidth: 300
+    //                     }}
+    //                 >
+    //                     <ResponsiveContainer
+    //                         width="100%"
+    //                         height="100%"
+    //                         minWidth={300}
+    //                         minHeight={150}
+    //                     >
+    //                         <LineChart
+    //                             data={chartData}
+    //                             margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+    //                         >
+    //                             <CartesianGrid
+    //                                 strokeDasharray="2 2"
+    //                                 stroke={theme.palette.divider}
+    //                             />
+    //                             <XAxis
+    //                                 dataKey="time"
+    //                                 stroke={theme.palette.text.secondary}
+    //                                 fontSize={10}
+    //                                 tickMargin={6}
+    //                             />
+    //                             <YAxis
+    //                                 stroke={theme.palette.text.secondary}
+    //                                 fontSize={10}
+    //                                 tickMargin={6}
+    //                             />
+    //                             <Tooltip
+    //                                 contentStyle={{
+    //                                     backgroundColor: theme.palette.background.paper,
+    //                                     border: `1px solid ${theme.palette.divider}`,
+    //                                     borderRadius: theme.shape.borderRadius,
+    //                                     boxShadow: theme.shadows[2],
+    //                                     fontSize: '0.8rem'
+    //                                 }}
+    //                             />
+    //                             <Area
+    //                                 type="monotone"
+    //                                 dataKey="scans"
+    //                                 stroke={theme.palette.secondary.main}
+    //                                 fill={theme.palette.secondary.main + '20'}
+    //                                 strokeWidth={1.5}
+    //                                 name="Сканирования"
+    //                             />
+    //                             <Line
+    //                                 type="monotone"
+    //                                 dataKey="activeRobots"
+    //                                 stroke={theme.palette.primary.main}
+    //                                 strokeWidth={2}
+    //                                 dot={{ fill: theme.palette.primary.main, strokeWidth: 1.5, r: 3 }}
+    //                                 activeDot={{ r: 4, strokeWidth: 1.5 }}
+    //                                 name="Активных роботов"
+    //                             />
+    //                         </LineChart>
+    //                     </ResponsiveContainer>
+    //                 </Box>
 
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
-                        <Typography variant="caption" color="primary.main" sx={{ fontSize: '0.65rem' }}>
-                            ● Активные роботы
-                        </Typography>
-                        <Typography variant="caption" color="secondary.main" sx={{ fontSize: '0.65rem' }}>
-                            ● Сканирования (область)
-                        </Typography>
-                    </Box>
-                </CardContent>
-            </Card>
-        );
-    };
+    //                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1.5 }}>
+    //                     <Typography variant="caption" color="primary.main" sx={{ fontSize: '0.65rem' }}>
+    //                         ● Активные роботы
+    //                     </Typography>
+    //                     <Typography variant="caption" color="secondary.main" sx={{ fontSize: '0.65rem' }}>
+    //                         ● Сканирования (область)
+    //                     </Typography>
+    //                 </Box>
+    //             </CardContent>
+    //         </Card>
+    //     );
+    // };
+
 
     const handleReconnect = () => {
         console.log('🔄 Manual reconnect from BodyInfo');
@@ -318,7 +337,10 @@ const BodyInfo = () => {
             className="real-time-stats"
             sx={{
                 width: '745px',
-                maxWidth: '100%'
+                maxWidth: '100%',
+                minWidth: 300,
+                display: 'flex',
+                flexDirection: 'column'
             }}
         >
             {/* Заголовок и статус */}
@@ -358,7 +380,7 @@ const BodyInfo = () => {
             )}
 
             {/* Карточки с метриками */}
-            <Grid container spacing={0.75} sx={{ width: '100%'}}>
+            <Grid container spacing={0.75} sx={{ width: '100%' }}>
                 <Grid item xs={3}>
                     <MetricCard
                         icon={<RobotIcon sx={{ fontSize: '0.9rem' }} />}
@@ -542,7 +564,7 @@ const BodyInfo = () => {
                 </Grid>
             </Grid>
             {/* График активности */}
-            <ActivityChart />
+            {/* <ActivityChart /> */}
 
             {/* Информация о подключении */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>

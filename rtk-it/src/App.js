@@ -5,7 +5,7 @@ import HomePage from './pages/HomePage';
 import PrivateRoute from './router/privateRoute';
 import DashboardPage from './pages/DashboardPage';
 import AuthRootComponent from './pages/auth/AuthRootComponent';
-import HystoryPage from './pages/HystoryPage';
+import HistoryPage from './pages/HistoryPage';
 
 
 
@@ -15,7 +15,7 @@ function App() {
       <Routes>
         <Route element={<PrivateRoute />}>
           <Route path='dashboard' element={<DashboardPage />} />
-          <Route path='history' element={<HystoryPage />}></Route>
+          <Route path='history' element={<HistoryPage />}></Route>
         </Route>
 
 

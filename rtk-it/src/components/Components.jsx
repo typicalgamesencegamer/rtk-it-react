@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback} from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router";
 import Svg from "./svg3";
 import { AppBar, Box, Button, Typography, } from "@mui/material";
@@ -23,27 +23,44 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { 
-  Card, 
-  CardContent, 
+import {
+  Card,
+  CardContent,
   Grid,
   LinearProgress,
   useTheme,
   Chip
 } from '@mui/material';
-import { 
+import {
   BatteryChargingFull,
   Refresh,
   Wifi,
   WifiOff
 } from '@mui/icons-material';
- 
-import {SmartToy as RobotIcon} from "@mui/icons-material";
+
+import { SmartToy as RobotIcon } from "@mui/icons-material";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area } from 'recharts';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
+import { authHistory } from "../store/slices/auth";
+
+function Input(props) {
+  return (
+    <>
+      <input type={props.type} placeholder={props.placeholder} value={props.value} onChange={props.onChange}></input>
+    </>
+  )
+}
 
 
+
+function LinkA(props) {
+  return (
+    <>
+      <a>{props.text}</a>
+    </>
+  )
+}
 
 function Header() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,19 +74,26 @@ function Header() {
   const dispatch = useDispatch();
 
   function handleClick(id) {
-    
+
     switch (id) {
       case "current_mon_btn":
         navigate('/dashboard');
         break;
       case "history_mon_btn":
-        dispatch(authHistory());
         navigate('/history');
         break;
       default:
         break;
     }
   }
+
+  const handleCurrentMonitoring = () => {
+    navigate('/dashboard');
+  };
+
+  const handleHistoryMonitoring = () => {
+    navigate('/history');
+  };
 
   const handleClickDownloadCSV = async (e) => {
     e.preventDefault();
@@ -175,7 +199,7 @@ function Header() {
             variant="text"
             color="inherit"
             sx={{ width: '300px' }}
-            onClick={(event) => handleClick(event.target.id)}
+            onClick={handleCurrentMonitoring}
           >
             Текущий мониторинг
           </Button>
@@ -187,7 +211,7 @@ function Header() {
             variant="text"
             color="inherit"
             sx={{ width: '300px' }}
-            onClick={(event) => handleClick(event.target.id)}
+            onClick={handleHistoryMonitoring}
           >
             Исторические данные
           </Button>
@@ -259,7 +283,7 @@ function Body() {
 }
 
 export default Header;
-export { Input, Button, LinkA, Header, Svg, Body };
+export { Input, Button, LinkA, Svg, Body };
 
 
 

@@ -16,7 +16,7 @@ const BodyScant = () => {
   const stompClientRef = useRef(null);
 
   // Функция для преобразования данных сканирования
-  const transformScanData = useCallback((scanData) => {
+  const transformScanData = (scanData) => {
     return {
       id: scanData.scanID || scanData.id,
       time: new Date(scanData.scannedAt || scanData.scanned_at).toLocaleTimeString(),
@@ -31,10 +31,10 @@ const BodyScant = () => {
       scannedAt: new Date(scanData.scannedAt || scanData.scanned_at),
       createdAt: new Date(scanData.createdAt || scanData.created_at)
     };
-  }, []);
+  }
 
   // Функция для обработки ошибок статуса
-  const getStatusBadgeClass = useCallback((status) => {
+  const getStatusBadgeClass = (status) => {
     switch (status) {
       case 'OK':
         return 'status-badge status-ok';
@@ -47,7 +47,7 @@ const BodyScant = () => {
       default:
         return 'status-badge';
     }
-  }, []);
+  };
 
   // Подключение к WebSocket
   useEffect(() => {
@@ -157,7 +157,7 @@ const BodyScant = () => {
       }
       stompClientRef.current = null;
     };
-  }, [dispatch, isPaused, transformScanData]);
+  }, [dispatch, isPaused]);
 
   // Автоскролл при новых записях
   useEffect(() => {

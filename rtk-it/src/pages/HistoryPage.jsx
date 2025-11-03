@@ -1,5 +1,5 @@
 import React from 'react'
-import { Header } from '../components/Components'
+import Header from '../components/Components'
 import { useState, useMemo } from 'react';
 import {
   Box,
@@ -140,7 +140,7 @@ const statusOptions = [
 ];
 
 
-const HystoryPage = () => {
+const HistoryPage = () => {
 
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
@@ -682,4 +682,4 @@ const HystoryPage = () => {
 };
   
 
-export default HystoryPage
+export default HistoryPage

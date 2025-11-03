@@ -1,5 +1,6 @@
 import React from 'react'
-import { Body, Header } from '../components/Components'
+import { Body } from '../components/Components'
+import Header from '../components/Components'
 
 const DashboardPage = () => {
   return (

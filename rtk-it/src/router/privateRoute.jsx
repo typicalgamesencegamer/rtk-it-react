@@ -4,7 +4,7 @@ import { Navigate } from "react-router";
 import { useAuth } from "../hook/hooks";
 
 function PrivateRoute() {
-    const auth = useAuth();
+    const auth = localStorage.getItem('isLogged');
     return (
         auth ? <Outlet /> : <Navigate to='login' />
     );
